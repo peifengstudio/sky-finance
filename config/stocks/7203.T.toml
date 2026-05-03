@@ -1,0 +1,27 @@
+ticker   = "7203.T"
+name     = "Toyota Motor Corporation"
+market   = "japan"
+currency = "JPY"
+enabled  = true
+
+[price]
+buy_price = 0.0              # not set — watchlist only
+stop_loss = 0.0
+targets   = [0.0, 0.0, 0.0]
+alerts    = [0.0, 0.0, 0.0]
+
+[position]
+shares     = 0
+max_weight = 0.05
+notes      = "Watchlist. Watch EV transition pace and US/Japan auto tariff developments."
+
+[ingestion]
+l1_keywords = ["トヨタ 決算", "トヨタ EV", "トヨタ 受注台数", "Toyota earnings"]
+l2_topics   = ["自動車 関税", "ハイブリッド 競争", "Toyota EV market share"]
+l3_macro    = ["円安 輸出収益", "米中貿易摩擦 自動車", "原油価格 自動車需要"]
+
+[analysis]
+signal_chain = "JPY/USD fluctuation → export revenue impact → earnings → stock"
+
+[strategies]
+enabled = ["momentum_crosscheck", "macro_risk_scan"]

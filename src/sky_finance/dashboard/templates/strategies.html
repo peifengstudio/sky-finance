@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Strategies — sky-finance{% endblock %}
+
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-xl font-semibold text-slate-100 mb-1">Strategies</h1>
+    <p class="text-sm text-slate-500">Define RAG-powered analysis rules. Runs triggered by Beat or manually.</p>
+  </div>
+  <div class="flex items-center gap-3">
+    {# Scheduler toggle — rendered by _scheduler_badge(), self-contained HTMX swap #}
+    <span id="scheduler-badge"
+          hx-get="/strategies/scheduler/status"
+          hx-trigger="load"
+          hx-swap="outerHTML">
+      <span class="text-xs text-slate-600">…</span>
+    </span>
+    <a href="/strategies/new"
+       class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-sm font-medium text-white transition-colors">
+      + New strategy
+    </a>
+  </div>
+</div>
+
+{# ── Strategy list ────────────────────────────────────────────────────────── #}
+{% if strategies %}
+<div class="overflow-x-auto rounded-xl border border-slate-800 mb-10">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-xs text-slate-500 bg-slate-900 border-b border-slate-800">
+        <th class="text-left px-4 py-2.5 font-medium">Name</th>
+        <th class="text-left px-4 py-2.5 font-medium">Scope</th>
+        <th class="text-left px-4 py-2.5 font-medium">Model</th>
+        <th class="text-left px-4 py-2.5 font-medium">Schedule</th>
+        <th class="text-left px-4 py-2.5 font-medium">Status</th>
+        <th class="text-left px-4 py-2.5 font-medium">Updated</th>
+        <th class="px-4 py-2.5"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-800/60">
+      {% for s in strategies %}
+      <tr class="hover:bg-slate-900/40 transition-colors">
+        <td class="px-4 py-3">
+          <a href="/strategies/{{ s.id }}"
+             class="font-medium text-slate-100 hover:text-sky-400 transition-colors">
+            {{ s.name }}
+          </a>
+          {% if s.description %}
+          <p class="text-xs text-slate-600 mt-0.5 truncate max-w-xs">{{ s.description }}</p>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3">
+          <span class="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+            {{ s.scope }}{% if s.scope_value %}: {{ s.scope_value }}{% endif %}
+          </span>
+        </td>
+        <td class="px-4 py-3">
+          <span class="text-xs px-1.5 py-0.5 rounded border
+            {% if s.model_tier == 'advanced' %}bg-violet-950/40 text-violet-400 border-violet-900
+            {% elif s.model_tier == 'nano' %}bg-sky-950/40 text-sky-400 border-sky-900
+            {% elif s.model_tier == 'claude' %}bg-orange-950/40 text-orange-400 border-orange-900
+            {% else %}bg-slate-800 text-slate-400 border-slate-700{% endif %}">
+            {{ s.model_tier }}
+          </span>
+        </td>
+        <td class="px-4 py-3 text-xs text-slate-500 font-mono">
+          {{ s.schedule or "—" }}
+        </td>
+        <td class="px-4 py-3">
+          {% if s.enabled %}
+          <span class="text-xs text-emerald-400">enabled</span>
+          {% else %}
+          <span class="text-xs text-slate-600">disabled</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3 text-xs text-slate-600 font-mono">
+          {{ s.updated_at.strftime("%m-%d %H:%M") if s.updated_at else "—" }}
+        </td>
+        <td class="px-4 py-3 text-right">
+          <a href="/strategies/{{ s.id }}"
+             class="text-xs text-slate-500 hover:text-slate-300 transition-colors">
+            Edit →
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="py-16 text-center text-slate-600 rounded-xl border border-slate-800 mb-10">
+  No strategies yet.
+  <a href="/strategies/new" class="text-sky-500 hover:text-sky-400 ml-1">Create one →</a>
+</div>
+{% endif %}
+
+{# ── Results table ────────────────────────────────────────────────────────── #}
+<div class="flex items-center justify-between mb-3">
+  <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wide">Results</h2>
+</div>
+<div id="results-container"
+     hx-get="/strategies/results?page=1"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <div class="py-8 text-center text-slate-600 text-xs">Loading…</div>
+</div>
+
+{% endblock %}

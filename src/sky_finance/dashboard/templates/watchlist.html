@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Watchlist — sky-finance{% endblock %}
+
+{% block content %}
+
+{# ── Header ──────────────────────────────────────────────────────────────── #}
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-xl font-semibold text-slate-100">
+      Watchlist
+      <span class="ml-1 text-base font-normal text-slate-500">({{ total }})</span>
+    </h1>
+    <p class="text-xs text-slate-500 mt-0.5">{{ held_count }} position{% if held_count != 1 %}s{% endif %} held</p>
+  </div>
+
+  {# ── Filters ── #}
+  <div class="flex flex-wrap gap-2">
+    {# Market filter #}
+    {% for label, value in [("All", ""), ("US", "us"), ("Japan", "japan")] %}
+    <button
+      hx-get="/?market={{ value }}&position={{ active_position }}"
+      hx-target="#stock-table"
+      hx-push-url="true"
+      class="px-3 py-1 text-xs rounded-full border transition-colors
+             {% if active_market == value %}
+               border-sky-500 bg-sky-500/10 text-sky-400
+             {% else %}
+               border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200
+             {% endif %}">
+      {{ label }}
+    </button>
+    {% endfor %}
+
+    <div class="w-px bg-slate-800"></div>
+
+    {# Position filter #}
+    {% for label, value in [("All", ""), ("Holdings", "held")] %}
+    <button
+      hx-get="/?market={{ active_market }}&position={{ value }}"
+      hx-target="#stock-table"
+      hx-push-url="true"
+      class="px-3 py-1 text-xs rounded-full border transition-colors
+             {% if active_position == value %}
+               border-sky-500 bg-sky-500/10 text-sky-400
+             {% else %}
+               border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200
+             {% endif %}">
+      {{ label }}
+    </button>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Table ───────────────────────────────────────────────────────────────── #}
+<div id="stock-table" class="overflow-x-auto rounded-xl border border-slate-800">
+  {% include "partials/stock_table.html" %}
+</div>
+
+{% endblock %}

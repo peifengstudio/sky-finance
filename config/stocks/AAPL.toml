@@ -1,0 +1,30 @@
+ticker   = "AAPL"
+name     = "Apple Inc."
+market   = "us"
+currency = "USD"
+enabled  = true
+
+[price]
+buy_price = 0.0              # average cost; 0.0 = not set
+stop_loss = 0.0              # hard exit level; 0.0 = not set
+targets   = [0.0, 0.0, 0.0] # T1 / T2 / T3 upside targets
+alerts    = [0.0, 0.0, 0.0] # notification trigger levels
+
+[position]
+shares     = 0
+max_weight = 0.08
+notes      = "Watchlist. Re-evaluate on each earnings cycle."
+
+[ingestion]
+# L1: direct company/product terms — primary RSS query
+l1_keywords = ["Apple earnings", "iPhone sales", "Apple supply chain", "Tim Cook"]
+# L2: sector/theme context — secondary RSS query + RAG expansion
+l2_topics   = ["US China tariffs tech", "AI smartphone features", "China Apple ban"]
+# L3: macro factors — RAG context only, not used for RSS fetching
+l3_macro    = ["Fed rate cut", "USD CNY exchange rate", "semiconductor supply chain"]
+
+[analysis]
+signal_chain = "China production risk → iPhone demand shortfall → revenue miss → stock"
+
+[strategies]
+enabled = ["momentum_crosscheck", "macro_risk_scan"]

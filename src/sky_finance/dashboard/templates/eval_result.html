@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Eval #{{ result.id }} — sky-finance{% endblock %}
+
+{% block content %}
+
+{# ── Breadcrumb + header ───────────────────────────────────────────────────── #}
+<div class="mb-6">
+  <a href="/eval" class="text-xs text-slate-500 hover:text-slate-300 transition-colors">
+    ← Evaluation results
+  </a>
+  <div class="flex items-start justify-between mt-3">
+    <div>
+      <h1 class="text-xl font-semibold text-slate-100 mb-1">
+        Eval #{{ result.id }}
+        <span class="font-mono text-sky-400 ml-1">{{ result.ticker }}</span>
+      </h1>
+      <p class="text-sm text-slate-500">
+        {% if result.strategy_id %}
+          <a href="/strategies/{{ result.strategy_id }}" class="hover:text-sky-400 transition-colors">
+            {{ result.strategy_name }}
+          </a>
+        {% else %}
+          {{ result.strategy_name }}
+        {% endif %}
+        · {{ result.ran_at.strftime("%Y-%m-%d %H:%M UTC") if result.ran_at else "—" }}
+        · judge: <span class="font-mono">{{ result.judge_model or "—" }}</span>
+      </p>
+    </div>
+
+    {# Winner badge #}
+    {% if result.winner == 'bucketed' %}
+    <span class="text-sm px-3 py-1 rounded-lg bg-emerald-950/60 text-emerald-400 border border-emerald-800 font-medium">
+      bucketed wins ✓
+    </span>
+    {% elif result.winner == 'plain' %}
+    <span class="text-sm px-3 py-1 rounded-lg bg-amber-950/60 text-amber-400 border border-amber-800 font-medium">
+      plain wins
+    </span>
+    {% else %}
+    <span class="text-sm px-3 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-medium">
+      tie
+    </span>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Score breakdown ───────────────────────────────────────────────────────── #}
+<div class="bg-slate-900 rounded-xl border border-slate-800 p-5 mb-6">
+  <h2 class="text-sm font-semibold text-slate-300 mb-4">Score breakdown</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-xs text-slate-500 border-b border-slate-800">
+          <th class="text-left pb-2 font-medium">Dimension</th>
+          <th class="text-right pb-2 font-medium">Bucketed</th>
+          <th class="text-right pb-2 font-medium">Plain</th>
+          <th class="text-right pb-2 font-medium">Δ</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800/50">
+        {% set dimensions = [
+          ("faithfulness",    "Faithfulness",    "How well the report is grounded in retrieved facts"),
+          ("coverage",        "Coverage",        "Breadth of relevant signals addressed"),
+          ("actionability",   "Actionability",   "Clarity and usefulness for investment decisions"),
+        ] %}
+        {% for key, label, desc in dimensions %}
+        {% set bs = result.bucketed_scores.get(key) if result.bucketed_scores else None %}
+        {% set ps = result.plain_scores.get(key) if result.plain_scores else None %}
+        {% set d = (bs - ps) if (bs is not none and ps is not none) else None %}
+        <tr>
+          <td class="py-2.5">
+            <span class="text-slate-200">{{ label }}</span>
+            <span class="ml-2 text-xs text-slate-600">{{ desc }}</span>
+          </td>
+          <td class="py-2.5 text-right font-mono text-slate-300">
+            {{ "%.1f"|format(bs) if bs is not none else "—" }}
+          </td>
+          <td class="py-2.5 text-right font-mono text-slate-300">
+            {{ "%.1f"|format(ps) if ps is not none else "—" }}
+          </td>
+          <td class="py-2.5 text-right font-mono font-semibold
+            {% if d is not none and d > 0 %}text-emerald-400
+            {% elif d is not none and d < 0 %}text-red-400
+            {% else %}text-slate-500{% endif %}">
+            {% if d is not none %}{{ "%+.1f"|format(d) }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+
+        {# Aggregate row #}
+        {% set bd = result.bucketed_score %}
+        {% set pd = result.plain_score %}
+        {% set ad = bd - pd %}
+        <tr class="border-t border-slate-700">
+          <td class="pt-3 pb-1 text-slate-400 font-semibold text-xs uppercase tracking-wide">
+            Average · /10
+          </td>
+          <td class="pt-3 pb-1 text-right font-mono font-bold
+            {% if bd >= 7 %}text-emerald-400{% elif bd >= 5 %}text-amber-400{% else %}text-red-400{% endif %}">
+            {{ "%.1f"|format(bd) }}
+          </td>
+          <td class="pt-3 pb-1 text-right font-mono font-bold
+            {% if pd >= 7 %}text-emerald-400{% elif pd >= 5 %}text-amber-400{% else %}text-red-400{% endif %}">
+            {{ "%.1f"|format(pd) }}
+          </td>
+          <td class="pt-3 pb-1 text-right font-mono font-bold
+            {% if ad > 0 %}text-emerald-400{% elif ad < 0 %}text-red-400{% else %}text-slate-500{% endif %}">
+            {{ "%+.1f"|format(ad) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {# Retrieval stats #}
+  <div class="mt-4 pt-4 border-t border-slate-800 flex flex-wrap gap-6 text-xs text-slate-500">
+    <span>
+      Chunks retrieved:
+      <span class="font-mono text-slate-300 ml-1">{{ result.bucketed_n_chunks }} bucketed</span>
+      <span class="text-slate-600 mx-1">/</span>
+      <span class="font-mono text-slate-300">{{ result.plain_n_chunks }} plain</span>
+    </span>
+    <span>
+      Query:
+      <span class="font-mono text-slate-400 ml-1">{{ result.query }}</span>
+    </span>
+  </div>
+</div>
+
+{# ── Judge reasoning ───────────────────────────────────────────────────────── #}
+{% if result.judge_reasoning %}
+<div class="bg-slate-900 rounded-xl border border-slate-800 p-5 mb-6">
+  <h2 class="text-sm font-semibold text-slate-300 mb-3">Judge reasoning</h2>
+  <p class="text-sm text-slate-400 leading-relaxed whitespace-pre-wrap">{{ result.judge_reasoning }}</p>
+</div>
+{% endif %}
+
+{# ── Side-by-side reports ──────────────────────────────────────────────────── #}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+  {# Bucketed report #}
+  <div class="bg-slate-900 rounded-xl border border-slate-800 flex flex-col">
+    <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+      <div>
+        <span class="text-sm font-semibold text-slate-200">Bucketed retrieval</span>
+        <span class="ml-2 text-xs text-slate-600">sentiment-filtered top-k</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-mono text-slate-500">{{ result.bucketed_n_chunks }} chunks</span>
+        <span class="text-xs font-mono font-bold
+          {% if result.bucketed_score >= 7 %}text-emerald-400
+          {% elif result.bucketed_score >= 5 %}text-amber-400
+          {% else %}text-red-400{% endif %}">
+          {{ "%.1f"|format(result.bucketed_score) }}/10
+        </span>
+      </div>
+    </div>
+    <div class="p-5 flex-1 overflow-auto">
+      {% if result.bucketed_report %}
+      <div class="prose prose-sm prose-invert max-w-none text-slate-300
+                  prose-headings:text-slate-200 prose-headings:font-semibold
+                  prose-strong:text-slate-200 prose-code:text-sky-300
+                  prose-a:text-sky-400 prose-li:text-slate-300"
+           id="bucketed-report-render">
+        <!-- rendered by JS below -->
+      </div>
+      <script>
+        document.getElementById('bucketed-report-render').innerHTML =
+          marked.parse({{ result.bucketed_report | tojson }});
+      </script>
+      {% else %}
+      <p class="text-xs text-slate-600 italic">No report available.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Plain report #}
+  <div class="bg-slate-900 rounded-xl border border-slate-800 flex flex-col">
+    <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+      <div>
+        <span class="text-sm font-semibold text-slate-200">Plain retrieval</span>
+        <span class="ml-2 text-xs text-slate-600">cosine similarity only</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-mono text-slate-500">{{ result.plain_n_chunks }} chunks</span>
+        <span class="text-xs font-mono font-bold
+          {% if result.plain_score >= 7 %}text-emerald-400
+          {% elif result.plain_score >= 5 %}text-amber-400
+          {% else %}text-red-400{% endif %}">
+          {{ "%.1f"|format(result.plain_score) }}/10
+        </span>
+      </div>
+    </div>
+    <div class="p-5 flex-1 overflow-auto">
+      {% if result.plain_report %}
+      <div class="prose prose-sm prose-invert max-w-none text-slate-300
+                  prose-headings:text-slate-200 prose-headings:font-semibold
+                  prose-strong:text-slate-200 prose-code:text-sky-300
+                  prose-a:text-sky-400 prose-li:text-slate-300"
+           id="plain-report-render">
+        <!-- rendered by JS below -->
+      </div>
+      <script>
+        document.getElementById('plain-report-render').innerHTML =
+          marked.parse({{ result.plain_report | tojson }});
+      </script>
+      {% else %}
+      <p class="text-xs text-slate-600 italic">No report available.</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

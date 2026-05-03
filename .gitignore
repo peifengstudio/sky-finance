@@ -1,0 +1,61 @@
+# Secrets
+.env
+*.pem
+*.key
+
+# Private stock configs (personal buy prices, share counts, etc.)
+config/stocks/local/
+
+# Python
+.python-version
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Data (raw / processed — potentially large or sensitive)
+data/
+
+# Logs
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Celery Beat state files
+celerybeat-schedule
+celerybeat-schedule.db
+celerybeat.pid
+celerybeat-schedule-shm
+celerybeat-schedule-wal
+
+# mise
+.mise.local.toml
+
+# Docker volumes
+docker/volumes/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Claude
+.claude/settings.local.json

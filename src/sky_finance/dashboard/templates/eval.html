@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Evaluation — sky-finance{% endblock %}
+
+{% block content %}
+
+{# ── Header ───────────────────────────────────────────────────────────────── #}
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <h1 class="text-xl font-semibold text-slate-100 mb-1">RAG Evaluation</h1>
+    <p class="text-sm text-slate-500">
+      LLM-as-a-judge comparison: sentiment-bucketed retrieval vs plain cosine similarity.
+    </p>
+  </div>
+  <div class="text-xs text-slate-600 text-right leading-relaxed mt-1">
+    Run via CLI:<br>
+    <span class="font-mono text-slate-500">uv run sky-eval --strategy-id &lt;id&gt;</span>
+  </div>
+</div>
+
+{# ── Summary stats ─────────────────────────────────────────────────────────── #}
+{% if stats.total > 0 %}
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+
+  <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+    <p class="text-xs text-slate-500 mb-1">Total evals</p>
+    <p class="text-2xl font-bold text-slate-100">{{ stats.total }}</p>
+  </div>
+
+  <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+    <p class="text-xs text-slate-500 mb-1">Bucketed win rate</p>
+    <p class="text-2xl font-bold
+      {% if stats.win_rate_pct >= 60 %}text-emerald-400
+      {% elif stats.win_rate_pct >= 40 %}text-amber-400
+      {% else %}text-red-400{% endif %}">
+      {{ stats.win_rate_pct }}%
+    </p>
+    <p class="text-xs text-slate-600 mt-0.5">
+      {{ stats.bucketed_wins }}W / {{ stats.plain_wins }}L / {{ stats.ties }}T
+    </p>
+  </div>
+
+  <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+    <p class="text-xs text-slate-500 mb-1">Avg score</p>
+    <p class="text-2xl font-bold text-slate-100">
+      {{ "%.1f"|format(stats.avg_bucketed) }}
+      <span class="text-base text-slate-600">vs</span>
+      {{ "%.1f"|format(stats.avg_plain) }}
+    </p>
+    <p class="text-xs text-slate-600 mt-0.5">bucketed vs plain · /10</p>
+  </div>
+
+  <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+    <p class="text-xs text-slate-500 mb-1">Score delta</p>
+    <p class="text-2xl font-bold
+      {% if stats.avg_delta > 0 %}text-emerald-400
+      {% elif stats.avg_delta < 0 %}text-red-400
+      {% else %}text-slate-400{% endif %}">
+      {{ "%+.1f"|format(stats.avg_delta) }}
+    </p>
+    <p class="text-xs text-slate-600 mt-0.5">bucketed advantage</p>
+  </div>
+
+</div>
+{% else %}
+<div class="py-16 text-center text-slate-600 rounded-xl border border-slate-800 mb-8">
+  <p class="mb-2">No evaluation results yet.</p>
+  <p class="text-xs font-mono">uv run sky-eval --strategy-id &lt;id&gt;</p>
+</div>
+{% endif %}
+
+{# ── Results table ─────────────────────────────────────────────────────────── #}
+{% if results %}
+<div class="overflow-x-auto rounded-xl border border-slate-800">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-xs text-slate-500 bg-slate-900 border-b border-slate-800">
+        <th class="text-left px-4 py-2.5 font-medium">Strategy</th>
+        <th class="text-left px-4 py-2.5 font-medium">Ticker</th>
+        <th class="text-right px-4 py-2.5 font-medium">Bucketed</th>
+        <th class="text-right px-4 py-2.5 font-medium">Plain</th>
+        <th class="text-right px-4 py-2.5 font-medium">Δ</th>
+        <th class="text-left px-4 py-2.5 font-medium">Winner</th>
+        <th class="text-left px-4 py-2.5 font-medium">Chunks</th>
+        <th class="text-left px-4 py-2.5 font-medium">Judge</th>
+        <th class="text-left px-4 py-2.5 font-medium">Date</th>
+        <th class="px-4 py-2.5"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-800/60">
+      {% for r in results %}
+      {% set delta = r.bucketed_score - r.plain_score %}
+      <tr class="hover:bg-slate-900/40 transition-colors">
+
+        <td class="px-4 py-3 text-xs text-slate-400">
+          {% if r.strategy_id %}
+          <a href="/strategies/{{ r.strategy_id }}"
+             class="hover:text-sky-400 transition-colors">{{ r.strategy_name }}</a>
+          {% else %}
+          {{ r.strategy_name }}
+          {% endif %}
+        </td>
+
+        <td class="px-4 py-3">
+          <span class="font-mono text-xs text-sky-400">{{ r.ticker }}</span>
+        </td>
+
+        <td class="px-4 py-3 text-right text-xs font-mono text-slate-300">
+          {{ "%.1f"|format(r.bucketed_score) }}
+        </td>
+        <td class="px-4 py-3 text-right text-xs font-mono text-slate-300">
+          {{ "%.1f"|format(r.plain_score) }}
+        </td>
+        <td class="px-4 py-3 text-right text-xs font-mono font-semibold
+          {% if delta > 0 %}text-emerald-400
+          {% elif delta < 0 %}text-red-400
+          {% else %}text-slate-500{% endif %}">
+          {{ "%+.1f"|format(delta) }}
+        </td>
+
+        <td class="px-4 py-3">
+          {% if r.winner == 'bucketed' %}
+          <span class="text-xs px-1.5 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800">
+            bucketed ✓
+          </span>
+          {% elif r.winner == 'plain' %}
+          <span class="text-xs px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-400 border border-amber-800">
+            plain
+          </span>
+          {% else %}
+          <span class="text-xs text-slate-600">tie</span>
+          {% endif %}
+        </td>
+
+        <td class="px-4 py-3 text-xs text-slate-600 font-mono">
+          {{ r.bucketed_n_chunks }}&thinsp;/&thinsp;{{ r.plain_n_chunks }}
+        </td>
+
+        <td class="px-4 py-3 text-xs text-slate-600 font-mono truncate max-w-xs"
+            title="{{ r.judge_model }}">
+          {{ r.judge_model.split('-')[0] if r.judge_model else '—' }}
+        </td>
+
+        <td class="px-4 py-3 text-xs text-slate-600 font-mono">
+          {{ r.ran_at.strftime("%m-%d %H:%M") if r.ran_at else "—" }}
+        </td>
+
+        <td class="px-4 py-3 text-right">
+          <a href="/eval/{{ r.id }}"
+             class="text-xs text-slate-500 hover:text-slate-300 transition-colors">
+            Detail →
+          </a>
+        </td>
+
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}

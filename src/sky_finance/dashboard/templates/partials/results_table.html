@@ -1,0 +1,93 @@
+{% if results %}
+<div class="overflow-x-auto rounded-xl border border-slate-800">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-xs text-slate-500 bg-slate-900 border-b border-slate-800">
+        <th class="text-left px-4 py-2.5 font-medium">#</th>
+        <th class="text-left px-4 py-2.5 font-medium">Strategy</th>
+        <th class="text-left px-4 py-2.5 font-medium">Tickers</th>
+        <th class="text-left px-4 py-2.5 font-medium">Model</th>
+        <th class="text-left px-4 py-2.5 font-medium">Duration</th>
+        <th class="text-left px-4 py-2.5 font-medium">Run at</th>
+        <th class="px-4 py-2.5"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-800/60">
+      {% for r in results %}
+      <tr class="hover:bg-slate-900/40 transition-colors">
+        <td class="px-4 py-3 text-xs text-slate-600 font-mono">{{ r.id }}</td>
+        <td class="px-4 py-3">
+          {% if r.strategy_id %}
+          <a href="/strategies/{{ r.strategy_id }}"
+             class="text-slate-300 hover:text-sky-400 transition-colors text-sm font-medium">
+            {{ r.strategy }}
+          </a>
+          {% else %}
+          <span class="text-slate-300 text-sm font-medium">{{ r.strategy }}</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3">
+          <div class="flex flex-wrap gap-1">
+            {% for ticker in r.tickers %}
+            <span class="font-mono text-xs text-sky-400">{{ ticker }}</span>
+            {% endfor %}
+          </div>
+        </td>
+        <td class="px-4 py-3">
+          <span class="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+            {{ r.model }}
+          </span>
+        </td>
+        <td class="px-4 py-3 text-xs text-slate-500 font-mono">
+          {% if r.duration_seconds is not none %}{{ "%.1f"|format(r.duration_seconds) }}s{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-xs text-slate-500 font-mono">
+          {% if r.started_at %}{{ r.started_at.strftime("%m-%d %H:%M") }}
+          {% elif r.ran_at %}{{ r.ran_at.strftime("%m-%d %H:%M") }}
+          {% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right">
+          <a href="/strategies/results/{{ r.id }}"
+             class="text-xs text-slate-500 hover:text-sky-400 transition-colors">
+            View →
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# Pagination #}
+{% if total_pages > 1 %}
+<div class="flex items-center justify-between mt-3 px-1">
+  <span class="text-xs text-slate-600">{{ total }} results</span>
+  <div class="flex items-center gap-1">
+    {% if page > 1 %}
+    <button class="px-3 py-1 rounded text-xs bg-slate-800 text-slate-400 hover:bg-slate-700 transition-colors"
+            hx-get="{{ request.url.path }}?page={{ page - 1 }}"
+            hx-target="#results-container"
+            hx-swap="innerHTML">
+      ← Prev
+    </button>
+    {% endif %}
+
+    <span class="px-3 py-1 text-xs text-slate-500">{{ page }} / {{ total_pages }}</span>
+
+    {% if page < total_pages %}
+    <button class="px-3 py-1 rounded text-xs bg-slate-800 text-slate-400 hover:bg-slate-700 transition-colors"
+            hx-get="{{ request.url.path }}?page={{ page + 1 }}"
+            hx-target="#results-container"
+            hx-swap="innerHTML">
+      Next →
+    </button>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="py-12 text-center text-slate-600 text-xs rounded-xl border border-slate-800">
+  No results yet.
+</div>
+{% endif %}

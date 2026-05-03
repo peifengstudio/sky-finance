@@ -1,0 +1,566 @@
+{% extends "base.html" %}
+{% block title %}{% if strategy %}{{ strategy.name }}{% else %}New Strategy{% endif %} — sky-finance{% endblock %}
+
+{% block content %}
+
+{# ── Header ───────────────────────────────────────────────────────────────── #}
+<div class="flex items-center gap-3 mb-6">
+  <a href="/strategies" class="text-slate-500 hover:text-slate-300 text-sm transition-colors">← Strategies</a>
+  <span class="text-slate-700">/</span>
+  <h1 class="text-xl font-semibold text-slate-100">
+    {% if strategy %}{{ strategy.name }}{% else %}New Strategy{% endif %}
+  </h1>
+  {% if strategy %}
+  <span class="text-xs px-1.5 py-0.5 rounded border ml-1
+    {% if strategy.model_tier == 'advanced' %}bg-violet-950/40 text-violet-400 border-violet-900
+    {% elif strategy.model_tier == 'nano' %}bg-sky-950/40 text-sky-400 border-sky-900
+    {% elif strategy.model_tier == 'claude' %}bg-orange-950/40 text-orange-400 border-orange-900
+    {% else %}bg-slate-800 text-slate-400 border-slate-700{% endif %}">
+    {{ strategy.model_tier }}
+  </span>
+  {% endif %}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+  {# ── Edit form (3/5) ──────────────────────────────────────────────────── #}
+  <div class="lg:col-span-3">
+    <div class="bg-slate-900 rounded-xl border border-slate-800 p-6">
+
+      <form method="post"
+            action="{% if strategy %}/strategies/{{ strategy.id }}{% else %}/strategies{% endif %}">
+
+        {# Name #}
+        <div class="mb-4">
+          <label class="block text-xs font-medium text-slate-400 mb-1">Name</label>
+          <input type="text" name="name" required
+                 value="{{ strategy.name if strategy else '' }}"
+                 placeholder="momentum_crosscheck"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2
+                        text-sm text-slate-100 placeholder-slate-600
+                        focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500" />
+        </div>
+
+        {# Description #}
+        <div class="mb-4">
+          <label class="block text-xs font-medium text-slate-400 mb-1">Description</label>
+          <input type="text" name="description"
+                 value="{{ strategy.description if strategy else '' }}"
+                 placeholder="Short description of what this strategy analyses"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2
+                        text-sm text-slate-100 placeholder-slate-600
+                        focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500" />
+        </div>
+
+        {# Scope + scope_value #}
+        <div class="mb-4">
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Scope</label>
+              <select name="scope" id="scope-select"
+                      onchange="onScopeChange(this.value)"
+                      class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2
+                             text-sm text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/50">
+                {% for sc in scopes %}
+                <option value="{{ sc }}" {% if strategy and strategy.scope == sc %}selected{% endif %}>
+                  {{ sc }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            {# Ticker text input (scope=ticker only) #}
+            <div id="scope-ticker-wrap"
+                 style="{{ '' if strategy and strategy.scope == 'ticker' else 'display:none' }}">
+              <label class="block text-xs font-medium text-slate-400 mb-1">
+                Ticker <span class="text-slate-600 font-normal">e.g. NVDA</span>
+              </label>
+              <input type="text" id="scope-ticker-input"
+                     value="{{ strategy.scope_value if strategy and strategy.scope == 'ticker' else '' }}"
+                     placeholder="NVDA"
+                     oninput="document.getElementById('scope-value-hidden').value = this.value"
+                     class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2
+                            text-sm text-slate-100 placeholder-slate-600
+                            focus:outline-none focus:ring-2 focus:ring-sky-500/50" />
+            </div>
+          </div>
+
+          {# Hidden field always submitted #}
+          <input type="hidden" name="scope_value" id="scope-value-hidden"
+                 value="{{ strategy.scope_value if strategy else '' }}" />
+
+          {# Stock picker (scope=group only) #}
+          <div id="scope-group-wrap"
+               style="{{ '' if strategy and strategy.scope == 'group' else 'display:none' }}">
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-xs font-medium text-slate-400">
+                Select stocks
+                <span class="text-slate-600 font-normal ml-1">— click to add/remove</span>
+              </label>
+              <span id="group-count" class="text-xs text-slate-500"></span>
+            </div>
+
+            {# Search filter #}
+            <input type="text" id="stock-search" placeholder="Filter by ticker or name…"
+                   oninput="filterStocks(this.value)"
+                   class="w-full mb-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5
+                          text-xs text-slate-100 placeholder-slate-600
+                          focus:outline-none focus:ring-1 focus:ring-sky-500/50" />
+
+            <div class="rounded-lg border border-slate-800 bg-slate-950 overflow-hidden max-h-72 overflow-y-auto">
+              {% for market, stocks in stock_groups.items() %}
+              <div class="market-section">
+                <div class="px-3 py-1.5 bg-slate-900 border-b border-slate-800 sticky top-0">
+                  <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">{{ market }}</span>
+                </div>
+                {% for s in stocks %}
+                {% set selected = strategy and strategy.scope == 'group' and s.ticker in (strategy.scope_value or '').split(',') %}
+                <div class="stock-row flex items-center gap-3 px-3 py-2 cursor-pointer
+                            hover:bg-slate-800/60 border-b border-slate-800/40 transition-colors
+                            {{ 'bg-sky-950/30' if selected else '' }}"
+                     data-ticker="{{ s.ticker }}"
+                     data-name="{{ s.name | lower }}"
+                     data-market="{{ market }}"
+                     onclick="toggleStock('{{ s.ticker }}')">
+                  <div class="w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors
+                              {{ 'bg-sky-500 border-sky-500' if selected else 'border-slate-600 bg-slate-800' }}"
+                       id="check-{{ s.ticker | replace('.', '_') }}">
+                    {% if selected %}
+                    <svg class="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
+                      <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    {% endif %}
+                  </div>
+                  <span class="font-mono text-xs text-sky-400">{{ s.ticker }}</span>
+                  <span class="text-xs text-slate-500 truncate">{{ s.name }}</span>
+                </div>
+                {% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <script>
+          (function () {
+            const initialValue = document.getElementById('scope-value-hidden').value;
+            const selected = new Set(
+              (document.getElementById('scope-select').value === 'group' ? initialValue : '')
+                .split(',').filter(Boolean)
+            );
+
+            function syncHidden() {
+              document.getElementById('scope-value-hidden').value = [...selected].join(',');
+              const el = document.getElementById('group-count');
+              if (el) el.textContent = selected.size ? selected.size + ' selected' : '';
+            }
+
+            window.toggleStock = function (ticker) {
+              const id = 'check-' + ticker.replace(/\./g, '_');
+              const box = document.getElementById(id);
+              const row = box && box.closest('.stock-row');
+              if (selected.has(ticker)) {
+                selected.delete(ticker);
+                if (box) {
+                  box.classList.replace('bg-sky-500', 'bg-slate-800');
+                  box.classList.replace('border-sky-500', 'border-slate-600');
+                  box.innerHTML = '';
+                }
+                if (row) row.classList.remove('bg-sky-950/30');
+              } else {
+                selected.add(ticker);
+                if (box) {
+                  box.classList.replace('bg-slate-800', 'bg-sky-500');
+                  box.classList.replace('border-slate-600', 'border-sky-500');
+                  box.innerHTML = '<svg class="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+                }
+                if (row) row.classList.add('bg-sky-950/30');
+              }
+              syncHidden();
+            };
+
+            window.filterStocks = function (query) {
+              const q = query.toLowerCase();
+              document.querySelectorAll('.stock-row').forEach(row => {
+                const match = !q
+                  || row.dataset.ticker.toLowerCase().includes(q)
+                  || row.dataset.name.includes(q);
+                row.style.display = match ? '' : 'none';
+              });
+              document.querySelectorAll('.market-section').forEach(section => {
+                const visible = [...section.querySelectorAll('.stock-row')]
+                  .some(r => r.style.display !== 'none');
+                section.style.display = visible ? '' : 'none';
+              });
+            };
+
+            window.onScopeChange = function (val) {
+              document.getElementById('scope-ticker-wrap').style.display = val === 'ticker' ? '' : 'none';
+              document.getElementById('scope-group-wrap').style.display  = val === 'group'  ? '' : 'none';
+              if (val === 'global') {
+                document.getElementById('scope-value-hidden').value = '';
+              } else if (val === 'ticker') {
+                document.getElementById('scope-value-hidden').value =
+                  document.getElementById('scope-ticker-input').value;
+              } else if (val === 'group') {
+                syncHidden();
+              }
+            };
+
+            syncHidden();
+          })();
+        </script>
+
+        {# Model tier #}
+        <div class="mb-4">
+          <label class="block text-xs font-medium text-slate-400 mb-1">Model tier</label>
+          <div class="flex gap-2">
+            {% for tier in tiers %}
+            <label class="flex-1 flex items-center gap-2 bg-slate-800 border rounded-lg px-3 py-2 cursor-pointer
+                          {% if strategy and strategy.model_tier == tier %}border-sky-600{% else %}border-slate-700{% endif %}">
+              <input type="radio" name="model_tier" value="{{ tier }}"
+                     {% if strategy and strategy.model_tier == tier %}checked{% elif not strategy and tier == 'local' %}checked{% endif %}
+                     class="accent-sky-500" />
+              <span class="text-sm text-slate-300">{{ tier }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <p class="text-xs text-slate-600 mt-1.5">
+            local = Ollama 14B &nbsp;·&nbsp; nano = gpt-5.4-nano &nbsp;·&nbsp; advanced = gpt-5 &nbsp;·&nbsp; claude = Claude Sonnet
+          </p>
+        </div>
+
+        {# RAG query template + retrieval config #}
+        <div class="mb-4">
+          <label class="block text-xs font-medium text-slate-400 mb-1">
+            RAG query template
+            <span class="text-slate-600 font-normal ml-1">— use {ticker} as placeholder</span>
+          </label>
+          <input type="text" name="rag_query_template"
+                 value="{{ strategy.rag_query_template if strategy else '' }}"
+                 placeholder="recent earnings news {ticker}"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2
+                        text-sm text-slate-100 placeholder-slate-600
+                        focus:outline-none focus:ring-2 focus:ring-sky-500/50" />
+        </div>
+
+        {# RAG retrieval settings #}
+        <div class="mb-4 rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+          <div class="flex items-center justify-between mb-2.5">
+            <p class="text-xs font-medium text-slate-400">
+              RAG retrieval
+              <span class="text-slate-600 font-normal ml-1">— docs per sentiment bucket + similarity floor</span>
+            </p>
+            {# Retrieval mode toggle — has-[:checked]: responds to click without JS #}
+            <div class="flex rounded-lg overflow-hidden border border-slate-700 text-xs">
+              {% set cur_mode = strategy.retrieval_mode if strategy else 'hybrid' %}
+              <label class="flex items-center px-2.5 py-1 cursor-pointer
+                            bg-slate-800 text-slate-400 hover:text-slate-200
+                            has-[:checked]:bg-sky-600 has-[:checked]:text-white">
+                <input type="radio" name="retrieval_mode" value="hybrid"
+                       {% if cur_mode == 'hybrid' %}checked{% endif %}
+                       class="sr-only" />
+                Hybrid
+              </label>
+              <label class="flex items-center px-2.5 py-1 cursor-pointer border-l border-slate-700
+                            bg-slate-800 text-slate-400 hover:text-slate-200
+                            has-[:checked]:bg-sky-600 has-[:checked]:text-white">
+                <input type="radio" name="retrieval_mode" value="vector"
+                       {% if cur_mode == 'vector' %}checked{% endif %}
+                       class="sr-only" />
+                Vector only
+              </label>
+            </div>
+          </div>
+          <div class="grid grid-cols-4 gap-2">
+            <div>
+              <label class="block text-xs text-emerald-500 mb-1">Positive</label>
+              <input type="number" name="rag_top_k_positive" min="0" max="100"
+                     value="{{ strategy.rag_top_k_positive if strategy else 20 }}"
+                     class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5
+                            text-xs text-slate-100 text-center
+                            focus:outline-none focus:ring-1 focus:ring-sky-500/50" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Neutral</label>
+              <input type="number" name="rag_top_k_neutral" min="0" max="100"
+                     value="{{ strategy.rag_top_k_neutral if strategy else 20 }}"
+                     class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5
+                            text-xs text-slate-100 text-center
+                            focus:outline-none focus:ring-1 focus:ring-sky-500/50" />
+            </div>
+            <div>
+              <label class="block text-xs text-red-400 mb-1">Negative</label>
+              <input type="number" name="rag_top_k_negative" min="0" max="100"
+                     value="{{ strategy.rag_top_k_negative if strategy else 20 }}"
+                     class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5
+                            text-xs text-slate-100 text-center
+                            focus:outline-none focus:ring-1 focus:ring-sky-500/50" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Similarity ≥</label>
+              <input type="number" name="rag_threshold" min="0" max="1" step="0.05"
+                     value="{{ "%.2f"|format(strategy.rag_threshold) if strategy else '0.55' }}"
+                     class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5
+                            text-xs text-slate-100 text-center font-mono
+                            focus:outline-none focus:ring-1 focus:ring-sky-500/50" />
+            </div>
+          </div>
+        </div>
+
+        {# Prompt template #}
+        <div class="mb-4">
+          <label class="block text-xs font-medium text-slate-400 mb-1">
+            Prompt template
+            <span class="text-slate-600 font-normal ml-1">— placeholders: {tickers} {rag_context} {ticker}</span>
+          </label>
+          <textarea name="prompt_template" rows="8"
+                    placeholder="You are a financial analyst. Analyse the following context for {tickers} and output a structured report..."
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2
+                           text-sm text-slate-100 placeholder-slate-600 font-mono leading-relaxed
+                           focus:outline-none focus:ring-2 focus:ring-sky-500/50 resize-y">{{ strategy.prompt_template if strategy else '' }}</textarea>
+        </div>
+
+        {# Schedule + enabled #}
+        <div class="grid grid-cols-2 gap-3 mb-6">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">
+              Cron schedule <span class="text-slate-600 font-normal">(UTC, blank = manual only)</span>
+            </label>
+            <input type="text" name="schedule"
+                   value="{{ strategy.schedule if strategy else '' }}"
+                   placeholder="0 8 * * 1-5"
+                   class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2
+                          text-sm text-slate-100 font-mono placeholder-slate-600
+                          focus:outline-none focus:ring-2 focus:ring-sky-500/50" />
+          </div>
+          <div class="flex items-end pb-1">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" name="enabled" value="on"
+                     {% if not strategy or strategy.enabled %}checked{% endif %}
+                     class="w-4 h-4 accent-sky-500" />
+              <span class="text-sm text-slate-300">Enabled</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button type="submit"
+                  class="px-5 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-sm font-medium text-white transition-colors">
+            {% if strategy %}Save changes{% else %}Create strategy{% endif %}
+          </button>
+          <a href="/strategies" class="text-sm text-slate-500 hover:text-slate-300 transition-colors">Cancel</a>
+        </div>
+      </form>
+    </div>
+
+    {# Delete (existing strategies only) #}
+    {% if strategy %}
+    <div class="mt-4 pt-4 border-t border-slate-800/60">
+      <form method="post" action="/strategies/{{ strategy.id }}/delete"
+            onsubmit="return confirm('Delete strategy {{ strategy.name }}? This cannot be undone.')">
+        <button type="submit"
+                class="text-xs text-red-700 hover:text-red-500 transition-colors">
+          Delete strategy
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── Run panel + results (2/5) ────────────────────────────────────────── #}
+  {% if strategy %}
+  <div class="lg:col-span-2 space-y-4">
+
+    {# Run panel #}
+    <div class="bg-slate-900 rounded-xl border border-slate-800 p-5">
+      <div class="flex items-center gap-2 mb-1">
+        <h2 class="text-sm font-semibold text-slate-200">Run strategy</h2>
+        <span class="text-xs px-1.5 py-0.5 rounded border
+          {% if strategy.model_tier == 'advanced' %}bg-violet-950/40 text-violet-400 border-violet-900
+          {% elif strategy.model_tier == 'nano' %}bg-sky-950/40 text-sky-400 border-sky-900
+          {% elif strategy.model_tier == 'claude' %}bg-orange-950/40 text-orange-400 border-orange-900
+          {% else %}bg-slate-800 text-slate-400 border-slate-700{% endif %}">
+          {{ strategy.model_tier }}
+        </span>
+      </div>
+      <p class="text-xs text-slate-500 mb-4">Streams output in real time · uses saved config</p>
+
+      {# Scope summary #}
+      <div class="mb-4 rounded-lg bg-slate-800/40 border border-slate-800 px-3 py-2.5">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-xs text-slate-500 shrink-0">Scope</span>
+          <span class="text-xs font-mono text-slate-400 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5">
+            {{ strategy.scope }}
+          </span>
+          {% if strategy.scope_value %}
+          <span class="text-xs text-slate-700">→</span>
+          {% for t in strategy.scope_value.split(',') %}{% set t = t.strip() %}{% if t %}
+          <span class="text-xs font-mono text-sky-400 bg-sky-950/30 border border-sky-900/40 rounded px-1.5 py-0.5">{{ t }}</span>
+          {% endif %}{% endfor %}
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-2 mt-2 text-xs text-slate-600">
+          <span>{% if strategy.retrieval_mode == 'hybrid' %}hybrid{% else %}vector{% endif %}</span>
+          <span>·</span>
+          <span>threshold {{ "%.2f"|format(strategy.rag_threshold) }}</span>
+          <span>·</span>
+          <span>top-k {{ strategy.rag_top_k_positive }}/{{ strategy.rag_top_k_neutral }}/{{ strategy.rag_top_k_negative }}</span>
+        </div>
+      </div>
+
+      <button id="stream-btn"
+        onclick="skyStartStream({{ strategy.id }})"
+        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-700 hover:bg-violet-600 text-sm font-medium text-white transition-colors">
+        <svg class="w-3 h-3 shrink-0" viewBox="0 0 10 10" fill="currentColor">
+          <path d="M2 1.5l7 3.5-7 3.5V1.5z"/>
+        </svg>
+        Run now
+      </button>
+
+      {# ── Streaming output panel (hidden until Stream live is clicked) ── #}
+      <div id="sky-stream-panel" class="hidden mt-4">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-xs font-medium text-slate-400">Live output</span>
+          <div class="flex items-center gap-3">
+            <span id="sky-stream-status" class="text-xs text-amber-400"></span>
+            <button onclick="skyClearStream()"
+                    class="text-xs text-slate-600 hover:text-slate-400 transition-colors">clear</button>
+          </div>
+        </div>
+
+        {# Raw pre — visible while streaming, hidden when done #}
+        <pre id="sky-stream-raw"
+             class="bg-slate-950 border border-slate-800 rounded-lg p-3
+                    text-xs text-slate-300 font-mono leading-relaxed
+                    overflow-auto max-h-96 whitespace-pre-wrap break-words"></pre>
+
+        {# Rendered Markdown — hidden while streaming, shown when done #}
+        <div id="sky-stream-rendered"
+             class="hidden prose prose-invert prose-sm max-w-none
+                    bg-slate-950 border border-slate-800 rounded-lg p-4
+                    overflow-auto max-h-96 text-xs"></div>
+
+        {# Result link — shown after save #}
+        <div id="sky-stream-footer" class="hidden mt-2 flex items-center gap-3">
+          <a id="sky-result-link" href="#"
+             class="text-xs text-sky-400 hover:text-sky-300 transition-colors">
+            View full result →
+          </a>
+          <span id="sky-stream-meta" class="text-xs text-slate-600"></span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    (function () {
+      let _es = null;
+
+      window.skyStartStream = function (strategyId) {
+        if (_es) { _es.close(); _es = null; }
+
+        const btn     = document.getElementById('sky-stream-btn') || document.getElementById('stream-btn');
+        const panel   = document.getElementById('sky-stream-panel');
+        const status  = document.getElementById('sky-stream-status');
+        const raw     = document.getElementById('sky-stream-raw');
+        const rendered= document.getElementById('sky-stream-rendered');
+        const footer  = document.getElementById('sky-stream-footer');
+
+        // Reset UI
+        panel.classList.remove('hidden');
+        raw.classList.remove('hidden');
+        rendered.classList.add('hidden');
+        footer.classList.add('hidden');
+        raw.textContent = '';
+        rendered.innerHTML = '';
+        status.className = 'text-xs text-amber-400';
+        status.textContent = 'Connecting…';
+        btn.disabled = true;
+        btn.textContent = 'Streaming…';
+
+        _es = new EventSource('/strategies/' + strategyId + '/run/stream');
+        let fullText = '';
+
+        _es.onmessage = function (e) {
+          const msg = JSON.parse(e.data);
+
+          if (msg.type === 'status') {
+            status.textContent = msg.text;
+
+          } else if (msg.type === 'chunk') {
+            fullText += msg.text;
+            raw.textContent = fullText;
+            raw.scrollTop = raw.scrollHeight;
+            status.textContent = 'Streaming…';
+
+          } else if (msg.type === 'done') {
+            _es.close(); _es = null;
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-3 h-3 shrink-0" viewBox="0 0 10 10" fill="currentColor"><path d="M2 1.5l7 3.5-7 3.5V1.5z"/></svg> Run now';
+            status.className = 'text-xs text-emerald-400';
+            status.textContent = '✓ Done';
+
+            // Render Markdown
+            if (window.marked) {
+              rendered.innerHTML = marked.parse(fullText);
+              raw.classList.add('hidden');
+              rendered.classList.remove('hidden');
+            }
+
+            // Footer: result link + meta
+            const link = document.getElementById('sky-result-link');
+            const meta = document.getElementById('sky-stream-meta');
+            link.href = '/strategies/results/' + msg.result_id;
+            meta.textContent = msg.model + ' · ' + msg.duration + 's · ' + msg.tickers.join(', ');
+            footer.classList.remove('hidden');
+
+          } else if (msg.type === 'error') {
+            _es.close(); _es = null;
+            btn.disabled = false;
+            btn.textContent = 'Stream live';
+            status.className = 'text-xs text-red-400';
+            status.textContent = '✗ Error';
+            raw.textContent = msg.message || 'Unknown error';
+            raw.classList.remove('hidden');
+            rendered.classList.add('hidden');
+          }
+        };
+
+        _es.onerror = function () {
+          if (_es) { _es.close(); _es = null; }
+          btn.disabled = false;
+          btn.innerHTML = '<svg class="w-3 h-3 shrink-0" viewBox="0 0 10 10" fill="currentColor"><path d="M2 1.5l7 3.5-7 3.5V1.5z"/></svg> Run now';
+          status.className = 'text-xs text-red-400';
+          status.textContent = '✗ Connection lost';
+        };
+      };
+
+      window.skyClearStream = function () {
+        if (_es) { _es.close(); _es = null; }
+        document.getElementById('sky-stream-panel').classList.add('hidden');
+        const btn = document.getElementById('stream-btn');
+        if (btn) { btn.disabled = false; btn.textContent = 'Stream live'; }
+      };
+    })();
+    </script>
+
+    {# Results #}
+    <div class="bg-slate-900 rounded-xl border border-slate-800 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-slate-300">Results</h2>
+        <span class="text-xs text-slate-600">latest 20</span>
+      </div>
+      <div id="strategy-results"
+           hx-get="/strategies/{{ strategy.id }}/results"
+           hx-trigger="every 15s"
+           hx-swap="innerHTML">
+        {% include "partials/strategy_results.html" %}
+      </div>
+    </div>
+
+  </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}

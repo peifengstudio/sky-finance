@@ -1,0 +1,42 @@
+{% if news %}
+<div class="space-y-3">
+  {% for item in news %}
+  <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+    <div class="flex items-start justify-between gap-4 mb-1.5">
+      <p class="text-sm font-medium text-slate-200 leading-snug">{{ item.title or "(no title)" }}</p>
+      <span class="shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium
+        {% if item.sentiment == 'positive' %}bg-emerald-950/60 text-emerald-400 border-emerald-900
+        {% elif item.sentiment == 'negative' %}bg-red-950/60 text-red-400 border-red-900
+        {% else %}bg-slate-800 text-slate-400 border-slate-700{% endif %}">
+        {{ item.sentiment or "neutral" }}
+      </span>
+    </div>
+    {% if item.body %}
+    <p class="text-xs text-slate-500 leading-relaxed">{{ item.body }}</p>
+    {% endif %}
+    {% if item.created_at %}
+    <p class="mt-2 text-xs text-slate-700">{{ item.created_at.strftime("%Y-%m-%d %H:%M") }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{% if news|length == 10 %}
+{# Load-more trigger — only shown when a full page was returned #}
+<div class="mt-4 text-center">
+  <button
+    hx-get="/stocks/{{ ticker }}/news?offset={{ offset }}"
+    hx-target="#news-list"
+    hx-swap="beforeend"
+    hx-indicator="#news-loading"
+    class="px-4 py-2 text-xs text-slate-400 border border-slate-700 rounded-lg
+           hover:border-slate-500 hover:text-slate-200 transition-colors">
+    Load more
+  </button>
+  <span id="news-loading" class="htmx-indicator ml-2 text-xs text-slate-500">Loading…</span>
+</div>
+{% endif %}
+
+{% else %}
+<p class="text-sm text-slate-600 py-8 text-center">No processed news yet — run the pipeline to populate.</p>
+{% endif %}

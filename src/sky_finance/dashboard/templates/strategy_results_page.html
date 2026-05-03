@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}All Results — sky-finance{% endblock %}
+
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-xl font-semibold text-slate-100 mb-1">All Results</h1>
+    <p class="text-sm text-slate-500">{{ total }} strategy runs recorded.</p>
+  </div>
+  <a href="/strategies"
+     class="text-sm text-slate-500 hover:text-slate-300 transition-colors">← Strategies</a>
+</div>
+
+<div id="results-container">
+  {% include "partials/results_table.html" %}
+</div>
+
+{% endblock %}

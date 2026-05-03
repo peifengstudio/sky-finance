@@ -1,0 +1,40 @@
+<div id="pipeline-stats"
+     hx-get="/pipeline/stats"
+     hx-trigger="every 30s"
+     hx-swap="outerHTML">
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
+  {% set cards = [
+    ("News articles",    stats.news.total,    stats.news.pending,    stats.news.processed,    stats.news.last_processed,    "sky"),
+    ("Price records",    stats.prices.total,  stats.prices.pending,  stats.prices.processed,  stats.prices.last_processed,  "violet"),
+    ("Documents",        stats.documents,     none,                  none,                    none,                         "emerald"),
+    ("Embeddings",       stats.embeddings,    none,                  none,                    none,                         "amber"),
+  ] %}
+
+  {% for label, total, pending, processed, last_ts, color in cards %}
+  <div class="bg-slate-900 rounded-xl border border-slate-800 p-5">
+    <div class="text-xs text-slate-500 uppercase tracking-wide font-medium mb-3">{{ label }}</div>
+    <div class="text-3xl font-bold text-slate-100 mb-2">{{ "{:,}".format(total) }}</div>
+
+    {% if pending is not none %}
+    <div class="flex items-center gap-3 text-xs mt-1">
+      {% if pending > 0 %}
+      <span class="flex items-center gap-1 text-amber-400">
+        <span class="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></span>
+        {{ pending }} pending
+      </span>
+      {% else %}
+      <span class="text-emerald-400/70">✓ all processed</span>
+      {% endif %}
+    </div>
+    {% if last_ts %}
+    <div class="text-xs text-slate-700 mt-2 font-mono">
+      last: {{ last_ts.strftime("%m-%d %H:%M") }}
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% endfor %}
+
+</div>
+</div>

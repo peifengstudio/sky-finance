@@ -1,0 +1,27 @@
+ticker   = "6758.T"
+name     = "Sony Group Corporation"
+market   = "japan"
+currency = "JPY"
+enabled  = true
+
+[price]
+buy_price = 0.0              # not set — watchlist only
+stop_loss = 0.0
+targets   = [0.0, 0.0, 0.0]
+alerts    = [0.0, 0.0, 0.0]
+
+[position]
+shares     = 0
+max_weight = 0.05
+notes      = "Watchlist. Diversified: gaming + image sensors + entertainment."
+
+[ingestion]
+l1_keywords = ["ソニー 決算", "PlayStation 5 販売", "SONY センサー 受注", "Sony earnings"]
+l2_topics   = ["イメージセンサー 需要 スマートフォン", "ゲーム市場 競争", "エンタメ 収益"]
+l3_macro    = ["円安 海外収益影響", "AI 映像技術 センサー", "ストリーミング 競争"]
+
+[analysis]
+signal_chain = "Gaming/sensor demand → segment revenue → consolidated earnings → stock"
+
+[strategies]
+enabled = ["momentum_crosscheck", "macro_risk_scan"]

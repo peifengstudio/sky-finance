@@ -1,0 +1,132 @@
+[app]
+log_level = "INFO"
+data_dir = "./data"
+
+# -----------------------------------------------------------------------
+# Database connection pool  (psycopg_pool.ConnectionPool)
+#
+# One pool is created per OS process:
+#   - each Celery worker process gets its own pool (safe after fork)
+#   - the FastAPI/uvicorn process gets one pool shared across requests
+#
+# With Celery concurrency=4 and max_connections=10:
+#   worst case = 4 × 10 = 40 DB connections — well within pg default of 100.
+# -----------------------------------------------------------------------
+[database]
+min_connections  = 2     # connections kept open at idle
+max_connections  = 10    # hard cap per process
+max_waiting      = 20    # requests queued before PoolTimeout is raised
+connect_timeout  = 5.0   # seconds to wait for a free connection
+
+# -----------------------------------------------------------------------
+# Ingestion
+# -----------------------------------------------------------------------
+[ingestion]
+# Intervals in minutes
+price_interval_minutes = 15
+news_interval_minutes  = 60
+
+# How many calendar days of history to back-fill on first run
+history_days = 90
+
+# Google RSS base URL template — {query} is substituted at runtime
+news_rss_template = "https://news.google.com/rss/search?q={query}+stock&hl=en-US&gl=US&ceid=US:en"
+
+# -----------------------------------------------------------------------
+# Local LLM (Ollama)
+# -----------------------------------------------------------------------
+# Recommended models:
+#   qwen2.5:3b-instruct  — fast, good JSON mode, ~2 GB VRAM   (default)
+#   qwen3:4b             — newer architecture, better reasoning, ~2.6 GB VRAM
+#   qwen2.5:7b-instruct  — higher quality, needs ~5 GB VRAM
+[llm]
+model      = "qwen2.5:3b-instruct"
+base_url   = "http://localhost:11434"
+max_tokens = 512
+
+# -----------------------------------------------------------------------
+# Embeddings
+# backend = "ollama"  → nomic-embed-text, local, free, 768 dims
+# backend = "openai"  → text-embedding-3-small, cloud, 1536 dims
+#                       (requires OPENAI_API_KEY, schema VECTOR must be 1536)
+# -----------------------------------------------------------------------
+[embeddings]
+backend      = "ollama"
+model        = "nomic-embed-text"    # local embedding model
+ollama_host  = "http://localhost:11434"
+openai_model = "text-embedding-3-small"
+dimensions   = 768                   # must match the DB column — run migration 001
+batch_size   = 32
+
+# -----------------------------------------------------------------------
+# RAG retrieval
+# -----------------------------------------------------------------------
+[rag]
+top_k                = 10         # chunks retrieved per ticker
+similarity_threshold = 0.75
+
+# Retrieval mode: "hybrid" (BM25 + vector + RRF fusion) or "vector" (cosine only).
+# "hybrid" is the default and recommended setting — it combines keyword precision
+# with semantic recall.  Switch to "vector" to restore legacy behaviour.
+retrieval_mode = "hybrid"
+
+# RRF constant k (Cormack 2009).  k=60 is the standard default.
+# Higher k → flatter score distribution (rank differences matter less).
+# Lower k → sharper discrimination (top ranks dominate more strongly).
+rrf_k = 60
+
+# -----------------------------------------------------------------------
+# Model tiers — used by the strategy engine
+# Strategies stored in the DB reference one of these tiers by name.
+# -----------------------------------------------------------------------
+[models.local]
+provider   = "ollama"
+model      = "qwen2.5:14b-instruct"   # swap for any locally-served model
+base_url   = "http://localhost:11434"
+max_tokens = 2048
+
+[models.nano]
+provider   = "openai"
+model      = "gpt-5.4-nano"
+max_tokens = 4096
+
+[models.advanced]
+provider   = "openai"
+model      = "gpt-5"
+max_tokens = 8192
+
+[models.claude]
+provider   = "claude"
+model      = "claude-sonnet-4-6"   # swap for claude-opus-4-7 for highest quality
+max_tokens = 16000
+
+# -----------------------------------------------------------------------
+# Strategies are stored in the database and managed via the dashboard.
+# Use /strategies in the web UI to create, edit, and trigger them.
+#
+# Default strategies are defined in config/strategies/*.toml and seeded
+# into the DB by `make seed-strategies` (runs automatically on `make setup`).
+# Seeding is idempotent: re-running updates existing rows without touching
+# historical results.
+# -----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
+# Celery Beat schedule (cron expressions, UTC)
+# These values are read by scheduler/celery_app.py to build beat_schedule.
+# -----------------------------------------------------------------------
+[scheduler]
+ingest_prices   = "*/15 9-16 * * 1-5"   # every 15 min, US market hours (Mon-Fri)
+ingest_news     = "0 * * * *"            # every hour
+run_pipeline    = "30 * * * *"           # 30 min past every hour
+run_strategies  = "0 8 * * 1-5"         # 08:00 UTC daily (Mon-Fri)
+send_digest     = "5 8 * * 1-5"         # 08:05 UTC daily (after strategies)
+
+# -----------------------------------------------------------------------
+# Celery worker
+# -----------------------------------------------------------------------
+[celery]
+concurrency     = 4          # worker processes
+task_soft_limit = 300        # seconds before task gets a SoftTimeLimitExceeded
+task_hard_limit = 600        # seconds before task is killed
+max_retries     = 3
+retry_backoff   = true       # exponential backoff on retry

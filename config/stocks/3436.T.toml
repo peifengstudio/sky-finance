@@ -1,0 +1,27 @@
+ticker   = "3436.T"
+name     = "SUMCO Corporation"
+market   = "japan"
+currency = "JPY"
+enabled  = true
+
+[price]
+buy_price = 0.0              # not set — watchlist only
+stop_loss = 0.0
+targets   = [0.0, 0.0, 0.0]
+alerts    = [0.0, 0.0, 0.0]
+
+[position]
+shares     = 0
+max_weight = 0.03
+notes      = "Watchlist. Pure-play silicon wafer. Watch inventory correction cycle bottom."
+
+[ingestion]
+l1_keywords = ["SUMCO 決算", "シリコンウェーハ 需要", "SUMCO 受注 回復", "SUMCO earnings"]
+l2_topics   = ["半導体 需要回復 ウェーハ", "ウェーハ 価格 交渉", "シリコン供給 逼迫"]
+l3_macro    = ["AI投資 データセンター 半導体", "半導体サイクル 底打ち", "中国 半導体規制 影響"]
+
+[analysis]
+signal_chain = "AI/semiconductor demand recovery → wafer order intake → ASP improvement → earnings → stock"
+
+[strategies]
+enabled = ["momentum_crosscheck", "macro_risk_scan"]

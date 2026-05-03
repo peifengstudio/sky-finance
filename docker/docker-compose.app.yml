@@ -1,0 +1,73 @@
+# Application services — Celery worker, Beat, Flower
+# Extends docker-compose.yml; use for full deployment or integration testing.
+#
+#   docker compose \
+#     -f docker/docker-compose.yml \
+#     -f docker/docker-compose.app.yml \
+#     up -d
+
+services:
+  celery-worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: sky-finance-app
+    container_name: sky-finance-worker
+    restart: unless-stopped
+    command: >
+      celery -A sky_finance.scheduler.celery_app worker
+      --loglevel=info
+      --concurrency=4
+      --queues=ingestion,pipeline,strategies,notifications,default
+    env_file: ../.env
+    volumes:
+      - ../data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery-beat:
+    image: sky-finance-app
+    container_name: sky-finance-beat
+    restart: unless-stopped
+    command: >
+      celery -A sky_finance.scheduler.celery_app beat
+      --loglevel=info
+      --scheduler celery.beat.PersistentScheduler
+    env_file: ../.env
+    depends_on:
+      - celery-worker
+
+  web:
+    image: sky-finance-app
+    container_name: sky-finance-web
+    restart: unless-stopped
+    command: uvicorn sky_finance.dashboard.app:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    env_file: ../.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  flower:
+    image: sky-finance-app
+    container_name: sky-finance-flower
+    restart: unless-stopped
+    command: >
+      celery -A sky_finance.scheduler.celery_app flower
+      --port=5555
+      --basic_auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin}
+    ports:
+      - "5555:5555"
+    env_file: ../.env
+    depends_on:
+      - redis

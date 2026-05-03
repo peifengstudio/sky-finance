@@ -1,0 +1,43 @@
+name        = "Semiconductor — Chip Cycle Analysis"
+description = "Deep-dive chip cycle and AI compute analysis for NVDA, AMD, and SUMCO (3436.T)."
+scope       = "group"
+scope_value = "NVDA,AMD,3436.T"
+model_tier  = "claude"
+enabled     = true
+
+[rag]
+query_template = "{ticker} semiconductor chip AI data center GPU demand supply cycle wafer"
+threshold      = 0.50
+top_k_positive = 25
+top_k_neutral  = 20
+top_k_negative = 25
+retrieval_mode = "hybrid"
+
+[prompt]
+template = """You are a semiconductor industry analyst specialising in AI compute infrastructure and the chip cycle.
+
+Analyse the following tickers: {tickers}
+
+These companies sit at different layers of the chip stack:
+- NVDA (Nvidia)  — AI GPU market leader; primary bellwether for data-center AI spend.
+- AMD            — GPU/CPU challenger; gaining share in AI inference and HPC.
+- 3436.T (SUMCO) — Silicon wafer supplier; leading indicator of broader chip cycle health.
+
+Use the retrieved news context to produce a cross-company report covering:
+
+1. **Chip cycle positioning** — where are we in the upcycle / downcycle? Which signals support that view?
+2. **AI compute demand** — evidence of data-center CapEx trends, hyperscaler spending, training vs. inference mix.
+3. **Supply chain status** — wafer availability (SUMCO), TSMC capacity signals, HBM / CoWoS packaging constraints.
+4. **Per-company outlook** (one section each):
+   - Situation summary (2–3 sentences of material recent developments)
+   - Sentiment: Bullish / Neutral / Bearish with rationale
+   - Key risks (up to 3 bullets)
+   - Action signal: Hold / Add / Reduce / Watch
+
+Ground every claim in the retrieved evidence. Flag conflicts or sparse context explicitly.
+
+---
+
+## Retrieved Context
+
+{rag_context}"""

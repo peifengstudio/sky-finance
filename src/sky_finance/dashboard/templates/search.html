@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Search — sky-finance{% endblock %}
+
+{% block content %}
+
+<div class="mb-6">
+  <h1 class="text-xl font-semibold text-slate-100 mb-1">Semantic Search</h1>
+  <p class="text-sm text-slate-500">Query is embedded locally via Ollama and matched against all ingested documents.</p>
+</div>
+
+{# ── Search form ──────────────────────────────────────────────────────────── #}
+<div class="bg-slate-900 rounded-xl border border-slate-800 p-5 mb-6">
+  <div class="flex flex-wrap gap-3">
+
+    {# Query input — triggers live search #}
+    <input
+      type="text"
+      name="q"
+      id="search-input"
+      placeholder="e.g. AI chip demand surge data center…"
+      autocomplete="off"
+      hx-get="/search/results"
+      hx-trigger="keyup changed delay:400ms, search"
+      hx-target="#results"
+      hx-indicator="#search-spinner"
+      hx-include="#ticker-filter, #type-filter, #sentiment-filter, #threshold-input"
+      class="flex-1 min-w-[260px] bg-slate-800 border border-slate-700 rounded-lg
+             px-4 py-2 text-sm text-slate-100 placeholder-slate-500
+             focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500
+             transition-colors" />
+
+    {# Ticker filter #}
+    <select id="ticker-filter" name="ticker"
+            hx-get="/search/results"
+            hx-trigger="change"
+            hx-target="#results"
+            hx-include="#search-input, #type-filter, #sentiment-filter, #threshold-input"
+            class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm
+                   text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/50">
+      <option value="">All tickers</option>
+      {% for ticker, name in ticker_names %}
+      <option value="{{ ticker }}">{{ ticker }} — {{ name }}</option>
+      {% endfor %}
+    </select>
+
+    {# Source type filter #}
+    <select id="type-filter" name="source_type"
+            hx-get="/search/results"
+            hx-trigger="change"
+            hx-target="#results"
+            hx-include="#search-input, #ticker-filter, #sentiment-filter, #threshold-input"
+            class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm
+                   text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/50">
+      <option value="">All types</option>
+      <option value="news">News</option>
+      <option value="ohlcv_summary">OHLCV</option>
+    </select>
+
+    {# Sentiment filter #}
+    <select id="sentiment-filter" name="sentiment"
+            hx-get="/search/results"
+            hx-trigger="change"
+            hx-target="#results"
+            hx-include="#search-input, #ticker-filter, #type-filter, #threshold-input"
+            class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm
+                   text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/50">
+      <option value="">All sentiments</option>
+      <option value="positive">Positive</option>
+      <option value="neutral">Neutral</option>
+      <option value="negative">Negative</option>
+    </select>
+
+    {# Similarity threshold #}
+    <div class="flex items-center gap-2">
+      <label for="threshold-input" class="text-xs text-slate-500 whitespace-nowrap">Min similarity</label>
+      <input
+        type="number"
+        id="threshold-input"
+        name="threshold"
+        value="0.70"
+        min="0" max="1" step="0.05"
+        class="w-20 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm
+               text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/50" />
+    </div>
+
+    <button
+      hx-get="/search/results"
+      hx-target="#results"
+      hx-indicator="#search-spinner"
+      hx-include="#search-input, #ticker-filter, #type-filter, #sentiment-filter, #threshold-input"
+      class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 active:bg-sky-700
+             text-sm font-medium text-white transition-colors shrink-0">
+      Search
+    </button>
+
+    <span id="search-spinner" class="htmx-indicator self-center text-xs text-slate-500">Searching…</span>
+  </div>
+</div>
+
+{# ── Results ──────────────────────────────────────────────────────────────── #}
+<div id="results">
+  {% include "partials/search_results.html" %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,66 @@
+{% if stocks %}
+<table class="w-full text-sm">
+  <thead>
+    <tr class="text-xs text-slate-500 bg-slate-900 border-b border-slate-800">
+      <th class="text-left px-4 py-2.5 font-medium">Ticker</th>
+      <th class="text-left px-4 py-2.5 font-medium">Name</th>
+      <th class="text-left px-4 py-2.5 font-medium">Market</th>
+      <th class="text-right px-4 py-2.5 font-medium">Shares</th>
+      <th class="text-right px-4 py-2.5 font-medium">Buy</th>
+      <th class="text-right px-4 py-2.5 font-medium">Stop</th>
+      <th class="text-right px-4 py-2.5 font-medium">T1</th>
+      <th class="text-left px-4 py-2.5 font-medium">Signal chain</th>
+    </tr>
+  </thead>
+  <tbody class="divide-y divide-slate-800/60">
+    {% for s in stocks %}
+    <tr class="hover:bg-slate-900/40 transition-colors">
+
+      <td class="px-4 py-3">
+        <a href="/stocks/{{ s.ticker }}"
+           class="font-mono font-semibold text-sky-400 hover:text-sky-300 transition-colors">
+          {{ s.ticker }}
+        </a>
+      </td>
+
+      <td class="px-4 py-3 text-slate-300 max-w-[200px] truncate">{{ s.name }}</td>
+
+      <td class="px-4 py-3">
+        <span class="text-xs px-2 py-0.5 rounded-full font-medium
+          {% if s.market == 'us' %}bg-blue-950/80 text-blue-400 border border-blue-900
+          {% else %}bg-rose-950/80 text-rose-400 border border-rose-900{% endif %}">
+          {{ s.market | upper }}
+        </span>
+      </td>
+
+      <td class="px-4 py-3 text-right font-mono text-sm">
+        {% if s.shares > 0 %}
+          <span class="text-slate-200">{{ s.shares }}</span>
+        {% else %}
+          <span class="text-slate-600">—</span>
+        {% endif %}
+      </td>
+
+      <td class="px-4 py-3 text-right font-mono text-slate-400 text-xs">
+        {% if s.buy_price > 0 %}{{ s.currency_symbol }}{{ s.buy_price }}{% else %}<span class="text-slate-700">—</span>{% endif %}
+      </td>
+
+      <td class="px-4 py-3 text-right font-mono text-red-400/70 text-xs">
+        {% if s.stop_loss > 0 %}{{ s.currency_symbol }}{{ s.stop_loss }}{% else %}<span class="text-slate-700">—</span>{% endif %}
+      </td>
+
+      <td class="px-4 py-3 text-right font-mono text-emerald-400/70 text-xs">
+        {% if s.targets and s.targets[0] > 0 %}{{ s.currency_symbol }}{{ s.targets[0] }}{% else %}<span class="text-slate-700">—</span>{% endif %}
+      </td>
+
+      <td class="px-4 py-3 text-slate-500 text-xs max-w-xs truncate" title="{{ s.signal_chain }}">
+        {{ s.signal_chain }}
+      </td>
+
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="py-16 text-center text-slate-600 text-sm">No stocks match the current filter.</div>
+{% endif %}

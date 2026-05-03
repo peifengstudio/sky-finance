@@ -1,0 +1,27 @@
+ticker   = "NVDA"
+name     = "NVIDIA Corporation"
+market   = "us"
+currency = "USD"
+enabled  = true
+
+[price]
+buy_price = 0.0              # average cost; 0.0 = not set
+stop_loss = 0.0              # hard exit level; 0.0 = not set
+targets   = [0.0, 0.0, 0.0] # T1 / T2 / T3 upside targets
+alerts    = [0.0, 0.0, 0.0] # notification trigger levels
+
+[position]
+shares     = 50
+max_weight = 0.08
+notes      = "50 shares held."
+
+[ingestion]
+l1_keywords = ["NVIDIA earnings", "GPU demand", "NVIDIA AI chips", "Jensen Huang"]
+l2_topics   = ["AI data center capex", "H100 H200 export controls", "CUDA ecosystem"]
+l3_macro    = ["US China chip export ban", "Fed policy rate", "hyperscaler cloud capex"]
+
+[analysis]
+signal_chain = "AI capex surge → GPU demand → data center revenue beat → stock"
+
+[strategies]
+enabled = ["momentum_crosscheck", "macro_risk_scan"]

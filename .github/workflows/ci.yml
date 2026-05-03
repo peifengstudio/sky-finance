@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint-and-test:
+    name: Lint & Test (Python 3.14)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Lint — ruff check
+        run: uv run ruff check src tests
+
+      - name: Lint — ruff format check
+        run: uv run ruff format --check src tests
+
+      - name: Type check — mypy
+        run: uv run mypy src
+
+      - name: Tests
+        run: uv run pytest --no-cov -x
+        env:
+          DATABASE_URL: postgresql://test:test@localhost/test
+          OPENAI_API_KEY: sk-test-000000000000000000000000000000000000000000000000
+          ANTHROPIC_API_KEY: sk-ant-test-0000000000000000000000000000000000000000000
+          SLACK_BOT_TOKEN: xoxb-test-000000000000-000000000000-000000000000000000000
+          SLACK_CHANNEL: "#test"
+          REDIS_URL: redis://localhost:6379/0
+          OLLAMA_BASE_URL: http://localhost:11434

@@ -1,0 +1,41 @@
+name        = "Japan Equities — Standard Analysis"
+description = "Daily fundamental and sentiment analysis for all Japan equity holdings."
+scope       = "group"
+scope_value = "japan"
+model_tier  = "claude"
+enabled     = true
+
+[rag]
+query_template = "{ticker} 業績 売上 利益 ガイダンス 見通し earnings revenue guidance"
+threshold      = 0.55
+top_k_positive = 20
+top_k_neutral  = 20
+top_k_negative = 20
+retrieval_mode = "hybrid"
+
+[prompt]
+template = """You are a professional equity analyst specialising in Japanese equities (TSE-listed stocks).
+
+Analyse the tickers below and produce a structured report for each one.
+Consider Japan-specific factors: BOJ monetary policy, yen/USD exchange rate, domestic demand trends,
+export competitiveness, and any regulatory or geopolitical developments.
+Ground every claim in the retrieved news context. Do not speculate beyond the evidence.
+
+Tickers: {tickers}
+
+---
+
+## Retrieved Context
+
+{rag_context}
+
+---
+
+For each ticker output a level-2 markdown heading (`## TICKER — Company Name`) followed by:
+
+1. **Situation summary** (2–3 sentences) — the most material recent developments.
+2. **Sentiment** — Bullish / Neutral / Bearish with a one-line rationale tied to the evidence.
+3. **Key risks** (up to 3 bullet points) — near-term headwinds including macro (yen, rates, China exposure) and company-specific risks.
+4. **Action signal** — Hold / Add / Reduce / Watch with a brief justification.
+
+Be concise. Flag explicitly when retrieved context is sparse or contradictory."""

@@ -1,0 +1,27 @@
+ticker   = "AMD"
+name     = "Advanced Micro Devices"
+market   = "us"
+currency = "USD"
+enabled  = true
+
+[price]
+buy_price = 201.30           # average cost per share
+stop_loss = 171.00           # ~-15% from buy
+targets   = [0.0, 0.0, 0.0] # T1 / T2 / T3 upside targets
+alerts    = [0.0, 0.0, 0.0] # notification trigger levels
+
+[position]
+shares     = 10
+max_weight = 0.05
+notes      = "10 shares @ $201.30."
+
+[ingestion]
+l1_keywords = ["AMD earnings", "AMD MI300 sales", "AMD data center GPU", "Lisa Su"]
+l2_topics   = ["AI chip competition", "AMD vs NVIDIA", "x86 CPU market share"]
+l3_macro    = ["chip export restrictions China", "cloud spending slowdown", "PC market recovery"]
+
+[analysis]
+signal_chain = "AI/cloud demand → MI300 order intake → revenue beat → stock"
+
+[strategies]
+enabled = ["momentum_crosscheck"]

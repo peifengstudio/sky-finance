@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}sky-finance{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.0/dist/htmx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    /* Loading indicator while HTMX is in-flight */
+    .htmx-indicator { opacity: 0; transition: opacity 150ms; }
+    .htmx-request .htmx-indicator { opacity: 1; }
+    .htmx-request.htmx-indicator  { opacity: 1; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-full antialiased">
+
+  <!-- Nav -->
+  <nav class="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-1">
+      <a href="/" class="font-bold text-sky-400 tracking-tight mr-5 flex items-center gap-1.5">
+        <span>📈</span> sky-finance
+      </a>
+
+      {% set nav_items = [
+        ("watchlist",   "/",             "Watchlist"),
+        ("search",      "/search",       "Search"),
+        ("pipeline",    "/pipeline",     "Pipeline"),
+        ("strategies",  "/strategies",   "Strategies"),
+        ("eval",        "/eval",         "Eval"),
+      ] %}
+      {% for key, href, label in nav_items %}
+      <a href="{{ href }}"
+         class="px-3 py-1.5 rounded-md text-sm transition-colors
+                {% if active_page == key %}
+                  bg-slate-800 text-slate-100
+                {% else %}
+                  text-slate-400 hover:text-slate-100 hover:bg-slate-800/60
+                {% endif %}">
+        {{ label }}
+      </a>
+      {% endfor %}
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,42 @@
+# Infrastructure only — PostgreSQL + Redis
+# Use this file in local development; app services are run directly via CLI.
+#
+#   docker compose -f docker/docker-compose.yml up -d
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: sky-finance-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: skyfinance
+      POSTGRES_PASSWORD: skyfinance
+      POSTGRES_DB: skyfinance
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skyfinance -d skyfinance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: sky-finance-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  redisdata:

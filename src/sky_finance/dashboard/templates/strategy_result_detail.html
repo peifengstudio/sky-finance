@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}Report #{{ result.id }} — {{ result.strategy }} — sky-finance{% endblock %}
+
+{% block content %}
+
+{# ── Breadcrumb ───────────────────────────────────────────────────────────── #}
+<div class="flex items-center gap-2 mb-6 text-sm">
+  <a href="/strategies" class="text-slate-500 hover:text-slate-300 transition-colors">Strategies</a>
+  <span class="text-slate-700">/</span>
+  {% if result.strategy_id %}
+  <a href="/strategies/{{ result.strategy_id }}"
+     class="text-slate-500 hover:text-slate-300 transition-colors">{{ result.strategy }}</a>
+  <span class="text-slate-700">/</span>
+  {% endif %}
+  <span class="text-slate-300">Report #{{ result.id }}</span>
+</div>
+
+{# ── Meta card ────────────────────────────────────────────────────────────── #}
+<div class="bg-slate-900 rounded-xl border border-slate-800 p-5 mb-6">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+
+    {# Strategy + tickers #}
+    <div>
+      <h1 class="text-lg font-semibold text-slate-100 mb-2">{{ result.strategy }}</h1>
+      <div class="flex flex-wrap gap-2">
+        {% for ticker in result.tickers %}
+        {% set name = ticker_names.get(ticker, "") %}
+        <a href="/stocks/{{ ticker }}"
+           class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg
+                  bg-slate-800 border border-slate-700 hover:border-sky-700
+                  transition-colors text-xs">
+          <span class="font-mono font-semibold text-sky-400">{{ ticker }}</span>
+          {% if name %}<span class="text-slate-400">{{ name }}</span>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# Run metadata #}
+    <div class="flex flex-col items-end gap-1.5 text-xs text-slate-500 shrink-0">
+      <span class="font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">{{ result.model }}</span>
+      {% if result.duration_seconds is not none %}
+      <span>{{ "%.1f"|format(result.duration_seconds) }}s</span>
+      {% endif %}
+      <span>
+        {% if result.started_at %}
+          {{ result.started_at.strftime("%Y-%m-%d %H:%M UTC") }}
+        {% elif result.ran_at %}
+          {{ result.ran_at.strftime("%Y-%m-%d %H:%M UTC") }}
+        {% endif %}
+      </span>
+    </div>
+  </div>
+</div>
+
+{# ── Cost & usage card ────────────────────────────────────────────────────── #}
+{% set usage = (result.metadata or {}).get("usage") %}
+{% if usage %}
+<div class="bg-slate-900 rounded-xl border border-slate-800 p-4 mb-6">
+  <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Cost &amp; usage</h2>
+
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+
+    {# Input tokens #}
+    <div class="text-center">
+      <div class="text-xl font-mono font-semibold text-slate-100 tabular-nums">
+        {{ "{:,}".format(usage.input_tokens) }}
+      </div>
+      <div class="text-xs text-slate-500 mt-0.5">input tokens</div>
+      {% if usage.cached_tokens %}
+      <div class="text-xs text-emerald-500 mt-0.5">
+        {{ "{:,}".format(usage.cached_tokens) }} from cache
+      </div>
+      {% endif %}
+    </div>
+
+    {# Output tokens #}
+    <div class="text-center">
+      <div class="text-xl font-mono font-semibold text-slate-100 tabular-nums">
+        {{ "{:,}".format(usage.output_tokens) }}
+      </div>
+      <div class="text-xs text-slate-500 mt-0.5">output tokens</div>
+    </div>
+
+    {# Cache write (Anthropic only) #}
+    <div class="text-center">
+      {% if usage.cache_creation_tokens %}
+      <div class="text-xl font-mono font-semibold text-sky-400 tabular-nums">
+        {{ "{:,}".format(usage.cache_creation_tokens) }}
+      </div>
+      <div class="text-xs text-slate-500 mt-0.5">cache written</div>
+      {% else %}
+      <div class="text-xl font-mono font-semibold text-slate-700">—</div>
+      <div class="text-xs text-slate-600 mt-0.5">cache written</div>
+      {% endif %}
+    </div>
+
+    {# Estimated cost #}
+    <div class="text-center">
+      {% if usage.cost_usd is none %}
+      <div class="text-xl font-mono font-semibold text-slate-600">?</div>
+      <div class="text-xs text-slate-600 mt-0.5">est. cost</div>
+      {% elif usage.cost_usd == 0 %}
+      <div class="text-xl font-mono font-semibold text-slate-400">$0</div>
+      <div class="text-xs text-slate-500 mt-0.5">est. cost</div>
+      {% else %}
+      <div class="text-xl font-mono font-semibold text-amber-400">
+        ${{ "%.4f"|format(usage.cost_usd) }}
+      </div>
+      <div class="text-xs text-slate-500 mt-0.5">est. cost</div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  {# Footer note #}
+  <div class="mt-3 text-xs text-slate-600 text-center">
+    {% if usage.provider == "ollama" %}
+    local model — no API cost · {{ usage.model }}
+    {% elif usage.cost_usd is none %}
+    pricing not available for {{ usage.model }}
+    {% else %}
+    estimated from published {{ usage.provider }} rates · {{ usage.model }}
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# ── Report body ──────────────────────────────────────────────────────────── #}
+<div class="bg-slate-900 rounded-xl border border-slate-800 p-6 lg:p-8">
+  <div class="flex items-center justify-between mb-5">
+    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">Report</h2>
+    <button onclick="copyReport()"
+            class="text-xs text-slate-600 hover:text-slate-400 transition-colors font-mono">
+      copy
+    </button>
+  </div>
+
+  {# Rendered markdown — prose-invert gives dark-mode typography #}
+  <div id="report-body"
+       class="prose prose-sm prose-invert max-w-none
+              prose-headings:text-slate-100 prose-headings:font-semibold
+              prose-h1:text-base prose-h2:text-sm prose-h3:text-xs prose-h3:uppercase prose-h3:tracking-wide
+              prose-p:text-slate-300 prose-p:leading-relaxed
+              prose-li:text-slate-300
+              prose-strong:text-slate-100
+              prose-code:text-sky-300 prose-code:bg-slate-800 prose-code:px-1 prose-code:rounded prose-code:text-xs
+              prose-pre:bg-slate-800 prose-pre:border prose-pre:border-slate-700
+              prose-blockquote:border-slate-700 prose-blockquote:text-slate-400
+              prose-hr:border-slate-800
+              prose-a:text-sky-400 hover:prose-a:text-sky-300">
+  </div>
+</div>
+
+{# Raw report text (hidden, used for copy) #}
+<textarea id="report-raw" class="sr-only" readonly>{{ result.report }}</textarea>
+
+{# ── Source news ──────────────────────────────────────────────────────────── #}
+{% set rag_news = result.metadata.get("rag_news", {}) if result.metadata else {} %}
+{% set names    = result.metadata.get("ticker_names", {}) if result.metadata else {} %}
+{% if rag_news %}
+<div class="mt-6">
+  <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
+    Source documents
+    <span class="text-slate-600 font-normal normal-case tracking-normal ml-1">
+      retrieved at run time
+    </span>
+  </h2>
+
+  <div class="space-y-4">
+    {% for ticker, articles in rag_news.items() %}
+    {% if articles %}
+    <div>
+      {# Ticker header #}
+      <div class="flex items-center gap-2 mb-2">
+        <span class="font-mono text-xs font-semibold text-sky-400">{{ ticker }}</span>
+        {% if names.get(ticker) %}
+        <span class="text-xs text-slate-500">{{ names[ticker] }}</span>
+        {% endif %}
+        <span class="text-xs text-slate-700">·</span>
+        <span class="text-xs text-slate-600">{{ articles | length }} docs</span>
+      </div>
+
+      <div class="space-y-2">
+        {% for art in articles %}
+        <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+          <div class="flex items-start justify-between gap-3 mb-1.5">
+            <p class="text-xs font-medium text-slate-200 leading-snug">{{ art.title }}</p>
+            <div class="flex items-center gap-1.5 shrink-0">
+              {% if art.sentiment == "positive" %}
+              <span class="text-xs px-1.5 py-0.5 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-900">+</span>
+              {% elif art.sentiment == "negative" %}
+              <span class="text-xs px-1.5 py-0.5 rounded-full bg-red-950/60 text-red-400 border border-red-900">−</span>
+              {% else %}
+              <span class="text-xs px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-500 border border-slate-700">~</span>
+              {% endif %}
+              <span class="font-mono text-xs text-slate-600" title="cosine similarity">{{ art.sim }}</span>
+            </div>
+          </div>
+          <p class="text-xs text-slate-500 leading-relaxed">{{ art.body }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<script>
+  const raw = document.getElementById("report-raw").value;
+  document.getElementById("report-body").innerHTML = marked.parse(raw);
+
+  function copyReport() {
+    navigator.clipboard.writeText(raw).then(() => {
+      const btn = document.querySelector("button[onclick='copyReport()']");
+      btn.textContent = "copied!";
+      setTimeout(() => btn.textContent = "copy", 2000);
+    });
+  }
+</script>
+
+{% endblock %}

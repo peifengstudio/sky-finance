@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}{{ cfg.ticker }} — sky-finance{% endblock %}
+
+{% block content %}
+
+{# ── Breadcrumb ───────────────────────────────────────────────────────────── #}
+<nav class="text-xs text-slate-500 mb-4">
+  <a href="/" class="hover:text-slate-300">Watchlist</a>
+  <span class="mx-1.5">/</span>
+  <span class="text-slate-300">{{ cfg.ticker }}</span>
+</nav>
+
+{# ── Header ───────────────────────────────────────────────────────────────── #}
+<div class="flex flex-wrap items-start justify-between gap-4 mb-8">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-100 flex items-center gap-3">
+      <span class="font-mono text-sky-400">{{ cfg.ticker }}</span>
+      <span class="text-slate-400 font-normal text-lg">{{ cfg.name }}</span>
+      <span class="text-xs px-2 py-1 rounded-full font-medium
+        {% if cfg.market == 'us' %}bg-blue-950 text-blue-400 border border-blue-900
+        {% else %}bg-rose-950 text-rose-400 border border-rose-900{% endif %}">
+        {{ cfg.market | upper }}
+      </span>
+    </h1>
+    {% if cfg.signal_chain %}
+    <p class="mt-1.5 text-sm text-slate-500 font-mono">{{ cfg.signal_chain }}</p>
+    {% endif %}
+  </div>
+  {% if cfg.shares > 0 %}
+  <div class="text-right">
+    <div class="text-2xl font-bold text-slate-100">{{ cfg.shares }} <span class="text-sm font-normal text-slate-400">shares</span></div>
+    {% if cfg.buy_price > 0 %}
+    <div class="text-xs text-slate-500">avg {{ cfg.currency_symbol }}{{ cfg.buy_price }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{# ── Two-column: config + latest price ───────────────────────────────────── #}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+  {# Price config card #}
+  <div class="bg-slate-900 rounded-xl border border-slate-800 p-5">
+    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">Price Levels</h2>
+    <dl class="grid grid-cols-2 gap-3 text-sm">
+      <div>
+        <dt class="text-xs text-slate-500 mb-0.5">Buy price</dt>
+        <dd class="font-mono text-slate-200">{% if cfg.buy_price > 0 %}{{ cfg.currency_symbol }}{{ cfg.buy_price }}{% else %}<span class="text-slate-600">—</span>{% endif %}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-slate-500 mb-0.5">Stop loss</dt>
+        <dd class="font-mono text-red-400">{% if cfg.stop_loss > 0 %}{{ cfg.currency_symbol }}{{ cfg.stop_loss }}{% else %}<span class="text-slate-600">—</span>{% endif %}</dd>
+      </div>
+      {% for i, target in [(1, cfg.targets[0]), (2, cfg.targets[1]), (3, cfg.targets[2])] %}
+      <div>
+        <dt class="text-xs text-slate-500 mb-0.5">Target {{ i }}</dt>
+        <dd class="font-mono text-emerald-400">{% if target > 0 %}{{ cfg.currency_symbol }}{{ target }}{% else %}<span class="text-slate-600">—</span>{% endif %}</dd>
+      </div>
+      {% endfor %}
+      <div>
+        <dt class="text-xs text-slate-500 mb-0.5">Max weight</dt>
+        <dd class="text-slate-200">{{ (cfg.max_weight * 100) | int }}%</dd>
+      </div>
+    </dl>
+    {% if cfg.notes %}
+    <p class="mt-4 text-xs text-slate-500 border-t border-slate-800 pt-3">{{ cfg.notes }}</p>
+    {% endif %}
+  </div>
+
+  {# Latest OHLCV card #}
+  <div class="bg-slate-900 rounded-xl border border-slate-800 p-5">
+    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">
+      Latest Price Data
+      {% if ohlcv %}
+      <span class="ml-2 font-mono font-normal text-slate-600 text-xs normal-case">{{ ohlcv.date }}</span>
+      {% endif %}
+    </h2>
+    {% if ohlcv %}
+    <dl class="grid grid-cols-2 gap-3 text-sm">
+      <div>
+        <dt class="text-xs text-slate-500 mb-0.5">Close</dt>
+        <dd class="font-mono text-xl text-slate-100 font-semibold">
+          {{ cfg.currency_symbol }}{{ ohlcv.close }}
+          {% if ohlcv.change_pct is not none %}
+          <span class="text-sm font-normal {% if ohlcv.change_pct >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">
+            {{ "%+.2f"|format(ohlcv.change_pct) }}%
+          </span>
+          {% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-slate-500 mb-0.5">Volume</dt>
+        <dd class="font-mono text-slate-300">{{ "{:,}".format(ohlcv.volume | int) if ohlcv.volume else "—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-slate-500 mb-0.5">Open</dt>
+        <dd class="font-mono text-slate-300">{{ cfg.currency_symbol }}{{ ohlcv.open }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-slate-500 mb-0.5">High / Low</dt>
+        <dd class="font-mono text-slate-300">{{ cfg.currency_symbol }}{{ ohlcv.high }} / {{ cfg.currency_symbol }}{{ ohlcv.low }}</dd>
+      </div>
+      {% if ohlcv.fundamentals.get("trailingPE") %}
+      <div>
+        <dt class="text-xs text-slate-500 mb-0.5">P/E (trailing)</dt>
+        <dd class="font-mono text-slate-300">{{ "%.2f"|format(ohlcv.fundamentals.trailingPE) }}</dd>
+      </div>
+      {% endif %}
+      {% if ohlcv.fundamentals.get("marketCap") %}
+      <div>
+        <dt class="text-xs text-slate-500 mb-0.5">Market cap</dt>
+        <dd class="font-mono text-slate-300">{{ cfg.currency_symbol }}{{ "{:,.0f}".format(ohlcv.fundamentals.marketCap) }}</dd>
+      </div>
+      {% endif %}
+    </dl>
+    {% else %}
+    <p class="text-sm text-slate-600">No price data ingested yet.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+{# ── Keywords ─────────────────────────────────────────────────────────────── #}
+<div class="bg-slate-900 rounded-xl border border-slate-800 p-5 mb-8">
+  <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">Keywords</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+    {% for tier_label, tier_color, tier_key in [
+      ("L1 — Direct", "sky",    "l1_keywords"),
+      ("L2 — Sector/Theme", "violet", "l2_topics"),
+      ("L3 — Macro (RAG only)", "amber", "l3_macro"),
+    ] %}
+    <div>
+      <div class="text-{{ tier_color }}-500 font-medium mb-1.5">{{ tier_label }}</div>
+      <div class="flex flex-wrap gap-1">
+        {% for kw in cfg[tier_key] %}
+        <span class="px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded text-xs font-mono">{{ kw }}</span>
+        {% else %}
+        <span class="text-slate-700">—</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Strategy results ─────────────────────────────────────────────────────── #}
+{% if strategies %}
+<div class="mb-8">
+  <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">Strategy Results</h2>
+  <div class="space-y-3">
+    {% for r in strategies %}
+    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-mono text-sky-400 font-medium">{{ r.strategy }}</span>
+        <span class="text-xs text-slate-500">{{ r.ran_at.strftime("%Y-%m-%d %H:%M") if r.ran_at else "" }}</span>
+      </div>
+      <p class="text-sm text-slate-300 leading-relaxed line-clamp-4">{{ r.report }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ── News ─────────────────────────────────────────────────────────────────── #}
+<div>
+  <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
+    Recent News <span class="text-slate-600 font-normal text-xs normal-case">(processed by pipeline)</span>
+  </h2>
+
+  <div id="news-list">
+    {% include "partials/news_list.html" %}
+  </div>
+</div>
+
+{% endblock %}
