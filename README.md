@@ -1,5 +1,9 @@
 # sky-finance
 
+> **This is the full production follow-up to the [SkyFinance POC](https://wangpeifeng.com/blogs/SkyFinance%3A%20I%20Built%20a%20Personal%20Stock%20Alert%20System%20with%20Local%20LLMs%20and%20Cloud%20AI) — a personal stock alert system built around a 6-step pipeline that ran twice every trading day for ~$0.50/month in cloud API costs.**
+>
+> The POC validated the core idea: use a local 7B model for per-ticker news filtering and classification (free), reserve frontier models only for cross-holding portfolio synthesis (cheap), and wire everything together with a disciplined cost boundary. This repository takes that architecture further — replacing the script-based pipeline with a proper task queue (Celery + Redis), adding persistent vector storage (PostgreSQL + pgvector) for RAG-powered strategy analysis, a web dashboard, LLM-as-a-judge evaluation, and multi-provider model support.
+
 > **⚠️ Disclaimer:** This project is for educational and research purposes only. It does not constitute financial or investment advice. The AI-generated analysis and strategies should not be used as the sole basis for real-world trading decisions. Do your own research (DYOR).
 
 A local-first financial intelligence platform for monitoring US and Japanese equities,
