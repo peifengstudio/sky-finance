@@ -59,7 +59,6 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=5.0",
-    "black>=24.0",
     "ruff>=0.5",
     "mypy>=1.10",
     "flower>=2.0",   # Celery monitoring UI
@@ -78,10 +77,6 @@ sky-eval    = "sky_finance.evaluation.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sky_finance"]
-
-[tool.black]
-line-length = 100
-target-version = ["py314"]
 
 [tool.ruff]
 line-length = 100
