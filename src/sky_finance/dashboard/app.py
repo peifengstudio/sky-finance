@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from sky_finance.logging_config import setup_logging
-from sky_finance.settings import ConfigurationError, validate_settings
+from sky_finance.settings import ConfigurationError, Settings, validate_settings
 from sky_finance.storage.db import close_pool, get_connection, open_pool
 
 logger = logging.getLogger(__name__)
@@ -60,6 +60,14 @@ app.include_router(strategies_router)
 app.include_router(eval_router)
 
 
+def _required_ollama_models(settings: Settings) -> set[str]:
+    """Return the set of Ollama model names required by the current config."""
+    required: set[str] = {settings.toml.llm.model}
+    if settings.env.embedding_backend == "ollama":
+        required.add(settings.toml.embeddings.model)
+    return required
+
+
 @app.get("/health")
 async def health() -> JSONResponse:
     """
@@ -90,13 +98,18 @@ async def health() -> JSONResponse:
         logger.warning("Health check — Redis: %s", exc)
         checks["redis"] = {"status": "error", "error": str(exc)}
 
-    # --- Ollama ---
+    # --- Ollama (connectivity + required model presence) ---
     try:
         import httpx
 
         resp = httpx.get(f"{settings.env.ollama_base_url}/api/tags", timeout=3.0)
         resp.raise_for_status()
-        checks["ollama"] = {"status": "ok"}
+        available = {m["name"] for m in resp.json().get("models", [])}
+        missing = sorted(_required_ollama_models(settings) - available)
+        checks["ollama"] = {
+            "status": "degraded" if missing else "ok",
+            "missing_models": missing,
+        }
     except Exception as exc:
         logger.warning("Health check — Ollama: %s", exc)
         checks["ollama"] = {"status": "error", "error": str(exc)}

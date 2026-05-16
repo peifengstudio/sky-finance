@@ -87,8 +87,8 @@ lint:			## Run ruff (lint) + mypy (type-check)
 	uv run ruff check src tests
 	uv run mypy src
 
-fmt:			## Auto-format with black + ruff --fix
-	uv run black src tests
+fmt:			## Auto-format with ruff format + ruff --fix
+	uv run ruff format src tests
 	uv run ruff check --fix src tests
 
 check: fmt lint test	## Format, lint, and test in one shot (pre-PR check)

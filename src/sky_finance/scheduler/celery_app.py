@@ -34,9 +34,7 @@ app = Celery("sky_finance", broker=broker, backend=backend)
 
 
 @celeryd_after_setup.connect  # type: ignore[untyped-decorator]
-def _configure_logging(
-    sender: Any, instance: Any, loglevel: Any, **kwargs: Any
-) -> None:  # noqa: ARG001
+def _configure_logging(sender: Any, instance: Any, loglevel: Any, **kwargs: Any) -> None:  # noqa: ARG001
     """Wire sky_finance logging into every Celery worker and beat process."""
     import sys
 
