@@ -8,11 +8,16 @@ Covers:
 
 import json
 import re
+from unittest.mock import MagicMock
 
 import httpx
 import respx
 
-from sky_finance.ingestion.news_fetcher import fetch_news, save_raw_news
+from sky_finance.ingestion.news_fetcher import (
+    _parse_published_iso,
+    fetch_news,
+    save_raw_news,
+)
 
 # ---------------------------------------------------------------------------
 # RSS fixture data
@@ -218,3 +223,49 @@ def test_save_raw_news_returns_correct_path(tmp_path, monkeypatch):
     path, _ = save_raw_news(_make_payload([_ARTICLE_1]))
 
     assert path == expected
+
+
+# ---------------------------------------------------------------------------
+# _parse_published_iso — error paths (lines 72, 76-77)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_published_iso_returns_none_when_field_missing():
+    entry = MagicMock(spec=[])  # no published_parsed attribute
+    result = _parse_published_iso(entry)
+    assert result is None
+
+
+def test_parse_published_iso_returns_none_when_field_is_none():
+    entry = MagicMock()
+    entry.published_parsed = None
+    result = _parse_published_iso(entry)
+    assert result is None
+
+
+def test_parse_published_iso_returns_none_on_timegm_exception():
+    entry = MagicMock()
+    entry.published_parsed = "not-a-struct-time"  # causes calendar.timegm to raise
+    result = _parse_published_iso(entry)
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _fetch_feed_async — HTTP error paths (lines 101-103, 107)
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_news_network_error_returns_empty_articles():
+    with respx.mock:
+        respx.get(_GOOGLE_RSS).mock(side_effect=httpx.ConnectError("connection refused"))
+        result = fetch_news("AAPL", "us", l1_keywords=["apple"])
+    assert result["articles"] == []
+
+
+def test_fetch_news_handles_bozo_feed_without_raising():
+    # Malformed XML — feedparser sets bozo=True but doesn't crash
+    malformed_xml = "<rss><channel><item><title>Test</title></item></channel>"
+    with respx.mock:
+        respx.get(_GOOGLE_RSS).mock(return_value=httpx.Response(200, text=malformed_xml))
+        result = fetch_news("AAPL", "us", l1_keywords=["apple"])
+    assert isinstance(result["articles"], list)
