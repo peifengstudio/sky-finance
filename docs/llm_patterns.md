@@ -229,22 +229,24 @@ _VERDICT_SCHEMA = {
 Every LLM call produces a `UsageStats` object that is written to
 `strategy_results.metadata["usage"]` and surfaced in the dashboard detail page.
 
-### Pricing table
+### Pricing config
 
-```python
-_PRICING = {
-    "claude-sonnet-4-6": {"in": 3.00, "out": 15.00,
-                          "cache_read": 0.30, "cache_write": 3.75},
-    "gpt-5":             {"in": 10.00, "out": 30.00,
-                          "cache_read": 5.00,  "cache_write": 0.0},
-    "gpt-5.4-nano":      {"in": 0.30,  "out": 1.20,
-                          "cache_read": 0.15,  "cache_write": 0.0},
-    ...
-}
+```toml
+[models.claude]
+provider   = "claude"
+model      = "claude-sonnet-4-6"
+max_tokens = 16000
+
+[models.claude.pricing]
+input       = 3.00
+output      = 15.00
+cache_read  = 0.30
+cache_write = 3.75
 ```
 
-Prices are per 1 million tokens (USD).  Update this table when you change
-models or when providers adjust their rates — no other code needs to change.
+Prices are per 1 million tokens (USD).  Keep pricing beside each
+`[models.<tier>]` entry in `config/settings.toml`; update that block when you
+change models or when providers adjust their rates.
 
 ### Cost formula
 
@@ -272,7 +274,7 @@ class UsageStats:
     output_tokens: int
     cached_tokens: int = 0
     cache_creation_tokens: int = 0
-    cost_usd: float | None = None   # None if model not in pricing table
+    cost_usd: float | None = None   # None if model pricing is not configured
 
     def to_dict(self) -> dict: ...  # stored in JSONB metadata column
 ```
@@ -328,6 +330,7 @@ The report detail page shows a four-box cost card:
 
 ### Updating prices
 
-Edit `_PRICING` in `src/sky_finance/strategies/costs.py`.  The key must match
-the model ID string exactly (e.g. `"claude-sonnet-4-6"`, `"gpt-5.4-nano"`).
-Models not in the table get `cost_usd=None` — they still track tokens.
+Edit `[models.<tier>.pricing]` in `config/settings.toml`.  Pricing is matched
+through the configured tier's `model` value (for example,
+`"claude-sonnet-4-6"` or `"gpt-5.4-nano"`).  Models without a pricing block get
+`cost_usd=None` — they still track tokens.

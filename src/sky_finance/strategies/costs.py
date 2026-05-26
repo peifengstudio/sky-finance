@@ -4,8 +4,9 @@ LLM cost estimation for sky-finance strategy runs.
 Usage stats are written to strategy_results.metadata["usage"] after every run
 so cost trends are visible in the dashboard without querying the API billing page.
 
-Pricing is per 1 million tokens (USD).  Update _PRICING when you change models
-or when providers adjust their rates — no other code needs to change.
+Pricing is per 1 million tokens (USD).  Configure it under
+``[models.<tier>.pricing]`` in config/settings.toml so changing models or
+rates does not require code changes.
 
 Key design choice
 -----------------
@@ -18,26 +19,7 @@ cache-creation portions and bills each at their own rate.
 from dataclasses import dataclass
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Pricing table  (USD per 1 000 000 tokens, estimates where marked)
-# ---------------------------------------------------------------------------
-
-# fmt: off
-_PRICING: dict[str, dict[str, float]] = {
-    # Anthropic — official 2025 published rates
-    "claude-sonnet-4-6":         {"in": 3.00,   "out": 15.00,  "cache_read": 0.30,  "cache_write": 3.75},   # noqa: E501
-    "claude-opus-4-7":           {"in": 15.00,  "out": 75.00,  "cache_read": 1.50,  "cache_write": 18.75},  # noqa: E501
-    "claude-haiku-4-5-20251001": {"in": 0.80,   "out": 4.00,   "cache_read": 0.08,  "cache_write": 1.00},   # noqa: E501
-    # OpenAI — 2025 published rates; gpt-5 / gpt-5.4-nano are estimates
-    "gpt-4o":                    {"in": 2.50,   "out": 10.00,  "cache_read": 1.25,  "cache_write": 0.0},    # noqa: E501
-    "gpt-4o-mini":               {"in": 0.15,   "out": 0.60,   "cache_read": 0.075, "cache_write": 0.0},   # noqa: E501
-    "gpt-5":                     {"in": 10.00,  "out": 30.00,  "cache_read": 5.00,  "cache_write": 0.0},    # noqa: E501  # estimate
-    "gpt-5.4-nano":              {"in": 0.30,   "out": 1.20,   "cache_read": 0.15,  "cache_write": 0.0},   # noqa: E501  # estimate
-    "o3":                        {"in": 10.00,  "out": 40.00,  "cache_read": 2.50,  "cache_write": 0.0},    # noqa: E501
-    "o3-mini":                   {"in": 1.10,   "out": 4.40,   "cache_read": 0.55,  "cache_write": 0.0},    # noqa: E501
-}
-# fmt: on
-
+from sky_finance.settings import ModelPricingConfig, get_settings
 
 # ---------------------------------------------------------------------------
 # Data model
@@ -52,7 +34,7 @@ class UsageStats:
     output_tokens: int
     cached_tokens: int = 0  # subset of input served from cache (cheaper rate)
     cache_creation_tokens: int = 0  # tokens written to a new cache entry (Anthropic only)
-    cost_usd: float | None = None  # None when model is not in the pricing table
+    cost_usd: float | None = None  # None when model pricing is not configured
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -69,6 +51,19 @@ class UsageStats:
 # ---------------------------------------------------------------------------
 # Cost computation
 # ---------------------------------------------------------------------------
+
+
+def _pricing_for_model(model: str) -> ModelPricingConfig | None:
+    """
+    Return pricing configured for a model tier, if present.
+
+    Pricing is stored beside the model ID in config/settings.toml so changing a
+    model or its published rates stays configuration-only.
+    """
+    for tier in get_settings().toml.models.values():
+        if tier.model == model:
+            return tier.pricing
+    return None
 
 
 def compute_cost(
@@ -97,16 +92,16 @@ def compute_cost(
     if provider == "ollama":
         cost: float | None = 0.0
     else:
-        p = _PRICING.get(model)
+        p = _pricing_for_model(model)
         if p is None:
             cost = None
         else:
             uncached = max(0, input_tokens - cached_tokens - cache_creation_tokens)
             cost = round(
-                uncached * p["in"] / 1_000_000
-                + cached_tokens * p["cache_read"] / 1_000_000
-                + cache_creation_tokens * p["cache_write"] / 1_000_000
-                + output_tokens * p["out"] / 1_000_000,
+                uncached * p.input / 1_000_000
+                + cached_tokens * p.cache_read / 1_000_000
+                + cache_creation_tokens * p.cache_write / 1_000_000
+                + output_tokens * p.output / 1_000_000,
                 6,
             )
 

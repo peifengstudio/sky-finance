@@ -149,11 +149,19 @@ class EmbeddingsConfig(BaseModel):
     batch_size: int = Field(default=32, ge=1, le=2048)
 
 
+class ModelPricingConfig(BaseModel):
+    input: float = Field(ge=0)
+    output: float = Field(ge=0)
+    cache_read: float = Field(default=0.0, ge=0)
+    cache_write: float = Field(default=0.0, ge=0)
+
+
 class ModelTierConfig(BaseModel):
     provider: Literal["ollama", "openai", "claude"]
     model: str
     base_url: str | None = None
     max_tokens: int = Field(default=2048, ge=1, le=131_072)
+    pricing: ModelPricingConfig | None = None
 
 
 class TomlSettings(BaseModel):
