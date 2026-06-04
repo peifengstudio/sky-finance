@@ -72,8 +72,9 @@ dev = [
 ]
 
 [project.scripts]
-sky-finance = "sky_finance.cli:main"
-sky-eval    = "sky_finance.evaluation.cli:main"
+sky-finance        = "sky_finance.cli:main"
+sky-eval           = "sky_finance.evaluation.cli:main"
+sky-validate-stocks = "sky_finance.config_validator:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sky_finance"]

@@ -7,7 +7,7 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help install models up down migrate seed-strategies dev worker beat flower web \
-        test lint fmt check ci clean
+        test lint fmt check ci clean validate-stocks
 
 # ── colour helpers ─────────────────────────────────────────────────────────────
 BOLD  := $(shell tput bold 2>/dev/null)
@@ -90,6 +90,9 @@ lint:			## Run ruff (lint) + mypy (type-check)
 fmt:			## Auto-format with ruff format + ruff --fix
 	uv run ruff format src tests
 	uv run ruff check --fix src tests
+
+validate-stocks:	## Validate all stock TOML configs and print a structured report
+	uv run sky-validate-stocks
 
 check: fmt lint test	## Format, lint, and test in one shot (pre-PR check)
 
