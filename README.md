@@ -598,10 +598,12 @@ Four tiers are configured under `[models.*]`. Strategies reference a tier by nam
 | `claude` | Anthropic | `claude-sonnet-4-6` | `tool_use` | Prompt caching — cost-efficient for long contexts |
 
 To swap a model, edit the relevant `[models.<tier>]` block in `config/settings.toml` — no code changes needed.
+Model pricing is configured in the same tier under `[models.<tier>.pricing]`
+using USD per 1 million tokens.
 
 **Cost tracking:** every strategy run records token counts and estimated `cost_usd` into
 `strategy_results.metadata["usage"]`.  The figure is visible on each result's detail page.
-Pricing lives in `src/sky_finance/strategies/costs.py` — update `_PRICING` when rates change.
+Update the tier's `pricing` block when providers change rates.
 
 **Prompt caching:** the `claude` tier marks its system prompt `cache_control: ephemeral`,
 reducing repeated-call cost by ~90%.  OpenAI caches automatically for prompts ≥ 1024 tokens
